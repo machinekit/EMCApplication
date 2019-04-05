@@ -20,6 +20,7 @@
 #include "mot_priv.h"
 #include "rtapi_math.h"
 #include "homing.h"
+#include "kinematics.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)

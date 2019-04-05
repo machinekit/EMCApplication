@@ -65,6 +65,7 @@
 #include "rtapi_math.h"
 #include "motion_types.h"
 #include "homing.h"
+#include "kinematics.h"
 
 #include "tp_debug.h"
 

@@ -19,6 +19,8 @@
 #include "rtapi_string.h"
 #include "kinematics.h"
 
+#define VTVERSION VTKINEMATICS_VERSION1
+
 #define ALLOW_DUPLICATES 1
 static int axis_idx_for_jno[EMCMOT_MAX_JOINTS];
 
@@ -92,6 +94,13 @@ KINEMATICS_TYPE kinematicsType()
     return ktype;
 }
 
+static vtkins_t vtk = {
+    .kinematicsForward = kinematicsForward,
+    .kinematicsInverse  = kinematicsInverse,
+    // .kinematicsHome = kinematicsHome,
+    .kinematicsType = kinematicsType
+};
+
 #define TRIVKINS_DEFAULT_COORDINATES "XYZABCUVW"
 static char *coordinates = TRIVKINS_DEFAULT_COORDINATES;
 RTAPI_MP_STRING(coordinates, "Existing Axes");
@@ -105,6 +114,8 @@ EXPORT_SYMBOL(kinematicsInverse);
 MODULE_LICENSE("GPL");
 
 static int comp_id;
+static const char *name = "trivkins";
+static int vtable_id;
 
 int rtapi_app_main(void) {
     if (map_coordinates_to_jnumbers(coordinates,
@@ -114,44 +125,55 @@ int rtapi_app_main(void) {
        return -1; //mapping failed
     }
     comp_id = hal_init("trivkins");
-    if(comp_id < 0) return comp_id;
-
-    switch (*kinstype) {
-      case 'b': case 'B': ktype = KINEMATICS_BOTH;         break;
-      case 'f': case 'F': ktype = KINEMATICS_FORWARD_ONLY; break;
-      case 'i': case 'I': ktype = KINEMATICS_INVERSE_ONLY; break;
-      case '1': default:  ktype = KINEMATICS_IDENTITY;
-    }
-
-    /* print message for unconventional ordering;
-    **   a) duplicate coordinate letters
-    **   b) letters not ordered by "XYZABCUVW" sequence
-    **      (use kinstype=both works best for these)
-    */
-    {
-        int jno,islathe,show=0;
-        for (jno=0; jno<EMCMOT_MAX_JOINTS; jno++) {
-            if (axis_idx_for_jno[jno] == -1) break; //fini
-            if (axis_idx_for_jno[jno] != jno) { show++; } //not default order
+    if(comp_id > 0) {
+        vtable_id = hal_export_vtable(name, VTVERSION, &vtk, comp_id);
+        if (vtable_id < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                        "%s: ERROR: hal_export_vtable(%s,%d,%p) failed: %d\n",
+                        name, name, VTVERSION, &vtk, vtable_id );
+            return -ENOENT;
         }
-        islathe = !strcasecmp(coordinates,"xz"); // no show if simple lathe
-        if (show && !islathe) {
-            rtapi_print("\ntrivkins: coordinates:%s\n", coordinates);
-            char *p="XYZABCUVW";
+        switch (*kinstype) {
+          case 'b': case 'B': ktype = KINEMATICS_BOTH;         break;
+          case 'f': case 'F': ktype = KINEMATICS_FORWARD_ONLY; break;
+          case 'i': case 'I': ktype = KINEMATICS_INVERSE_ONLY; break;
+          case '1': default:  ktype = KINEMATICS_IDENTITY;
+        }
+
+        /* print message for unconventional ordering;
+        **   a) duplicate coordinate letters
+        **   b) letters not ordered by "XYZABCUVW" sequence
+        **      (use kinstype=both works best for these)
+        */
+        {
+            int jno,islathe,show=0;
             for (jno=0; jno<EMCMOT_MAX_JOINTS; jno++) {
                 if (axis_idx_for_jno[jno] == -1) break; //fini
-                rtapi_print("   Joint %d ==> Axis %c\n",
-                           jno,*(p+axis_idx_for_jno[jno]));
+                if (axis_idx_for_jno[jno] != jno) { show++; } //not default order
             }
-            if (ktype != KINEMATICS_BOTH) {
-                rtapi_print("trivkins: Recommend: kinstype=both\n");
+            islathe = !strcasecmp(coordinates,"xz"); // no show if simple lathe
+            if (show && !islathe) {
+                rtapi_print("\ntrivkins: coordinates:%s\n", coordinates);
+                char *p="XYZABCUVW";
+                for (jno=0; jno<EMCMOT_MAX_JOINTS; jno++) {
+                    if (axis_idx_for_jno[jno] == -1) break; //fini
+                    rtapi_print("   Joint %d ==> Axis %c\n",
+                               jno,*(p+axis_idx_for_jno[jno]));
+                }
+                if (ktype != KINEMATICS_BOTH) {
+                    rtapi_print("trivkins: Recommend: kinstype=both\n");
+                }
+                rtapi_print("\n");
             }
-            rtapi_print("\n");
         }
-    }
 
-    hal_ready(comp_id);
-    return 0;
+        hal_ready(comp_id);
+        return 0;
+    }
+    return comp_id;
 }
 
-void rtapi_app_exit(void) { hal_exit(comp_id); }
+void rtapi_app_exit(void) {
+    hal_remove_vtable(vtable_id);
+    hal_exit(comp_id);
+}
