@@ -27,7 +27,6 @@
 #include "rs274ngc_return.hh"
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
-#include "rtapi_math.h"
 #include <cmath>
 #include <rtapi_string.h>
 
