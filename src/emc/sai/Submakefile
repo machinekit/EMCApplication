@@ -6,10 +6,13 @@ USERSRCS += $(SAISRCS)
 
 INCLUDES += emc/sai
 
-../bin/rs274: $(call TOOBJS, $(SAISRCS)) ../lib/librs274.so.0 ../lib/liblinuxcnc.a ../lib/libnml.so.0 \
-	../lib/liblinuxcnchal.so.0 ../lib/liblinuxcncini.so.0 ../lib/libpyplugin.so.0
+../bin/rs274: $(call TOOBJS, $(SAISRCS)) ../lib/librs274.so.0 \
+	    ../lib/liblinuxcnc.a ../lib/libnml.so.0 \
+	    $(LIB_HAL_SO) ../lib/liblinuxcncini.so.0 \
+	    ../lib/libpyplugin.so.0
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CXX) $(LDFLAGS) -o $@ $^ $(ULFLAGS) $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON) $(READLINE_LIBS)
+	$(Q)$(CXX) $(LDFLAGS) -o $@ $^ $(ULFLAGS) $(L_HAL) $(L_ULAPI) \
+		$(L_RTAPI_MATH) $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON) $(READLINE_LIBS)
 
 $(patsubst ./emc/sai/%,../include/%,$(wildcard ./emc/sai/*.h)): ../include/%.h: ./emc/sai/%.h
 	cp $^ $@

@@ -3,9 +3,10 @@ EMCSVRSRCS := \
 	emc/task/emcsvr.cc
 USERSRCS += $(EMCSVRSRCS)
 
-../bin/linuxcncsvr: $(call TOOBJS, $(EMCSVRSRCS)) ../lib/liblinuxcnchal.so.0 ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
+../bin/linuxcncsvr: $(call TOOBJS, $(EMCSVRSRCS)) $(LIB_HAL_SO) \
+	../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CXX) $(LDFLAGS) -o $@ $^
+	$(Q)$(CXX) $(LDFLAGS) -o $@ $^ $(L_HAL) $(L_ULAPI)
 TARGETS += ../bin/linuxcncsvr
 
 # disabled:	emc/task/iotaskintf.cc
@@ -28,9 +29,12 @@ USERSRCS += $(MILLTASKSRCS)
 
 #LDFLAGS +=
 
-../bin/milltask: $(call TOOBJS, $(MILLTASKSRCS)) ../lib/librs274.so.0 ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0 ../lib/libposemath.so.0 ../lib/liblinuxcnchal.so.0 ../lib/libpyplugin.so.0
-
-
+../bin/milltask: $(call TOOBJS, $(MILLTASKSRCS)) \
+	    ../lib/librs274.so.0 ../lib/liblinuxcnc.a ../lib/libnml.so.0 \
+	    ../lib/liblinuxcncini.so.0 ../lib/libposemath.so.0 \
+	    $(LIB_HAL_SO) ../lib/libpyplugin.so.0 \
+	    $(LIB_LCNCULAPI_SO)
 	$(ECHO) Linking $(notdir $@)
-	$(CXX) -o $@ $^ $(LDFLAGS) $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON) \
+	    $(L_HAL) $(L_ULAPI) $(L_RTAPI_MATH)
 TARGETS += ../bin/milltask

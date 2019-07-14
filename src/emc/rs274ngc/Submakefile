@@ -41,11 +41,13 @@ $(call TOOBJSDEPS, $(LIBRS274SRCS)) : EXTRAFLAGS=-fPIC $(BOOST_DEBUG_FLAGS)
 TARGETS += ../lib/librs274.so ../lib/librs274.so.0
 
 ../lib/librs274.so.0: $(patsubst %.cc,objects/%.o,$(LIBRS274SRCS)) \
-	../lib/liblinuxcncini.so ../lib/libpyplugin.so ../lib/liblinuxcnchal.so.0
+	../lib/liblinuxcncini.so ../lib/libpyplugin.so $(LIB_HAL_SO)
 	$(ECHO) Linking $(notdir $@)
 	@mkdir -p ../lib
 	@rm -f $@
-	$(CXX) -g $(LDFLAGS) -Wl,-soname,$(notdir $@) -shared -o $@ $^ -lstdc++ $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON) $(LIBDL)
+	$(CXX) -g $(LDFLAGS) -Wl,-soname,$(notdir $@) -shared -o $@ $^ \
+	    -lstdc++ $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON) $(LIBDL) \
+	    $(L_HAL) $(L_RTAPI_MATH)
 
 $(patsubst ./emc/rs274ngc/%,../include/%,$(wildcard ./emc/rs274ngc/*.h)): ../include/%.h: ./emc/rs274ngc/%.h
 	cp $^ $@

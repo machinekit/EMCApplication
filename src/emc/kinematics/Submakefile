@@ -15,9 +15,11 @@ $(DELTAMODULE): $(call TOOBJS, $(DELTAMODULESRCS))
 	$(CXX) $(LDFLAGS) -shared -o $@ $^ $(BOOST_PYTHON_LIBS)
 PYTARGETS += $(DELTAMODULE)
 
-../bin/genserkins: $(call TOOBJS, $(GENSERKINSSRCS)) ../lib/liblinuxcnchal.so ../lib/libposemath.so
+../bin/genserkins: \
+	    $(call TOOBJS, $(GENSERKINSSRCS)) $(LIB_HAL_SO) \
+	    ../lib/libposemath.so $(LIB_LCNCULAPI_SO)
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CC) $(LDFLAGS) -o $@ $^
+	$(Q)$(CC) $(LDFLAGS) -o $@ $(L_HAL) $(L_ULAPI) $(L_RTAPI_MATH) $^
 TARGETS += ../bin/genserkins
 
 RDELTAMODULESRCS := emc/kinematics/rotarydeltakins.cc
