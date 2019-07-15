@@ -16,7 +16,7 @@ usage () {
 $P: Set up debian/ files to build for a particular kernel
 
 Usage:
-    $P uspace [noauto | rtai | rtai=packagename | xenomai] ...
+    $P uspace [noauto | rtai | rtai=packagename | xenomai | machinekit-hal] ...
         Build for a userspace realtime systems or simulator
 
     $P sim
@@ -25,6 +25,10 @@ Usage:
     $P [kernel-version]
         Build for the installed RTAI realtime kernel specified by
         [kernel-version], for example "3.4.9-rtai-686-pae"
+
+    $P machinekit-hal
+        Build EMC against an external Machinekit HAL, configured by
+        'pkg-config machinekit-hal'
 
     $P -r
         Build for the currently running kernel for RTAI realtime only
@@ -79,6 +83,7 @@ DRIVERS=drivers.files.in
 PYTHON_VERSION=$(python -c 'import sys; print sys.version[:3]')
 PYTHON_VERSION_NEXT=$(python -c 'import sys; print sys.version[:2] + str(1+int(sys.version[2]))')
 LIBREADLINE_DEV=libreadline-gplv2-dev
+INITRD_REALTIME_PATH=etc/init.d/realtime
 
 BUILD_RTAI=false
 BUILD_XENOMAI=false
@@ -246,6 +251,22 @@ case $TARGET in
         EXTRA_RECOMMENDS="$EXTRA_RECOMMENDS, linux-image-rt-amd64 [linux-amd64], linux-image-rt-686-pae [linux-i386]"
         CONFIGURE_REALTIME_ARG=--with-realtime=uspace
     ;;
+    machinekit-hal)
+	TARGET=machinekit-hal
+        MODULE_PATH=usr/lib/linuxcnc/modules
+	MODULE_EXT=.so
+        KERNEL_DEPENDS=machinekit-hal
+	KERNEL_HEADERS=
+	KERNEL_VERSION=machinekit-hal
+        MODUTILS_DEPENDS=
+	DRIVERS=
+        EXTRA_FILES=
+	DISTRIB_NAME=ext-hal-$DISTRIB_NAME
+	MAIN_PACKAGE_NAME=linuxcnc
+        OTHER_MAIN_PACKAGE_NAME=linuxcnc-uspace
+        INITRD_REALTIME_PATH=
+        CONFIGURE_REALTIME_ARG=--with-hal=machinekit-hal
+    ;;
     2.6.32-122-rtai|3.4-9-rtai-686-pae|3.16.0-9-rtai-*)
         CONFIGURE_REALTIME_ARG=--with-realtime=/usr/realtime-$KERNEL_VERSION
     ;;
@@ -265,6 +286,7 @@ sed \
     -e "s#@KERNEL_HEADERS@#$KERNEL_HEADERS#g" \
     -e "s#@KERNEL_VERSION@#$KERNEL_VERSION#g" \
     -e "s#@LIBREADLINE_DEV@#$LIBREADLINE_DEV#g" \
+    -e "s#@INITRD_REALTIME_PATH@#$INITRD_REALTIME_PATH#g"\
     -e "s#@MAIN_PACKAGE_NAME@#$MAIN_PACKAGE_NAME#g" \
     -e "s#@MODULE_EXT@#$MODULE_EXT#g" \
     -e "s#@MODULE_PATH@#$MODULE_PATH#g" \
@@ -306,9 +328,11 @@ echo >> control
 subst control.main-pkg.in >> control
 
 if [ "$TARGET" == "uspace" ]; then
-    cp linuxcnc-dev.files.in linuxcnc-uspace-dev.files
+    subst linuxcnc-dev.files.in linuxcnc-hal-dev.files.in > linuxcnc-uspace-dev.files
+elif [ "$TARGET" == "machinekit-hal" ]; then
+    subst linuxcnc-dev.files.in > linuxcnc-dev.files
 else
-    cp linuxcnc-dev.files.in linuxcnc-dev.files
+    subst linuxcnc-dev.files.in linuxcnc-hal-dev.files.in > linuxcnc-dev.files
     echo "$MODULE_PATH/Module.symvers" >> linuxcnc-dev.files
 fi
 

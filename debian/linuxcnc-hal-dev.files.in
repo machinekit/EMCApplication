@@ -1,0 +1,3 @@
+usr/share/man/man1/halcompile.1
+usr/bin/halcompile
+usr/share/linuxcnc/Makefile.modinc

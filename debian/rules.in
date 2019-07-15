@@ -94,6 +94,12 @@ endif
 	-rm -f debian/tmp/usr/share/doc/linuxcnc/examples/sample-configs/*/*position*.txt
 	(cd debian/tmp/usr/share/doc/linuxcnc/examples; \
 	    ln -sf ../../../linuxcnc/ncfiles ./nc_files)
+ifeq "$(kernel_version)" "machinekit-hal"
+	rm debian/tmp/usr/lib/python2.7/dist-packages/bitfile.py
+	rm debian/tmp/usr/lib/python2.7/dist-packages/hal.py
+	rm debian/tmp/usr/lib/python2.7/dist-packages/hal_glib.py
+	rm debian/tmp/usr/lib/python2.7/dist-packages/linux_event.py
+endif
 	dh_movefiles
 ifeq "$(enable_build_documentation)" ""
 	find debian/tmp/usr/share/applications -name linuxcnc-*.desktop -delete

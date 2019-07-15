@@ -1,5 +1,5 @@
 etc/linuxcnc/*
-etc/init.d/realtime
+@INITRD_REALTIME_PATH@
 etc/X11/app-defaults/*
 etc/xdg/menus/applications-merged/CNC.menu
 @EXTRA_FILES@
