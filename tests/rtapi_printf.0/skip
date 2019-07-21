@@ -1,0 +1,8 @@
+#!/bin/bash
+#                                                   -*-shell-script-*-
+# Machinekit doesn't build the `test_rtapi_vsnprintf` executable
+# needed for this test
+
+if test "$HAL_PKG" = machinekit-hal; then
+    exit 1
+fi

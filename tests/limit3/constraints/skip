@@ -1,0 +1,8 @@
+#!/bin/bash
+#                                                   -*-shell-script-*-
+# Machinekit has this test, and pins are named differently:
+#     ./test.hal:81: Pin 'charge-pump.out' does not exist
+
+if test "$HAL_PKG" = machinekit-hal; then
+    exit 1
+fi

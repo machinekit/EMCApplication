@@ -1,0 +1,7 @@
+#!/bin/bash
+#                                                   -*-shell-script-*-
+# This test breaks on Machinekit, which has its own test
+
+if test "$HAL_PKG" = machinekit-hal; then
+    exit 1
+fi

@@ -1,0 +1,8 @@
+#!/bin/bash
+#                                                   -*-shell-script-*-
+# This test doesn't work in MK-HAL because of how argument handling
+# differs
+
+if test "$HAL_PKG" = machinekit-hal; then
+    exit 1
+fi

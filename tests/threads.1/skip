@@ -1,0 +1,8 @@
+#!/bin/bash -e
+#
+# Machinekit names the `tmax` pin `<comp>.funct.tmax`; has its own
+# test for this
+
+if test "$HAL_PKG" = machinekit-hal; then
+    exit 1
+fi

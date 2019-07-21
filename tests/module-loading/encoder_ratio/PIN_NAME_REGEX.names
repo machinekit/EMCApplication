@@ -1,1 +1,1 @@
-er[0-9]\.enable$
+er[0-9]\.enable( .*)?$

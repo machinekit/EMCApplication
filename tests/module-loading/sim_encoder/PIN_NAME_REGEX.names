@@ -1,1 +1,1 @@
-simenc[0-9]\.speed$
+simenc[0-9]\.speed( .*)?$

@@ -1,0 +1,9 @@
+#!/bin/bash
+#                                                   -*-shell-script-*-
+# Machinekit  `list funct` and `list pin` output different:
+# - Functions:  some names end with `.funct`; extra `{del,new}inst` functions
+# - Pins:  extra `*.funct.{time,tmax,tmax-inc}` pins; streamer pins differ
+
+if test "$HAL_PKG" = machinekit-hal; then
+    exit 1
+fi

@@ -1,1 +1,1 @@
-encoder-ratio\.[0-9]\.enable$
+encoder-ratio\.[0-9]\.enable( .*)?$

@@ -1,1 +1,1 @@
-siggen[0-9]+\.amplitude$
+siggen[0-9]+\.amplitude( .*)?$
