@@ -1,3 +1,4 @@
+ifdef HAVE_INTERNAL_HAL
 HALCMDSRCS := hal/utils/halcmd.c hal/utils/halcmd_commands.c hal/utils/halcmd_main.c
 HALSHSRCS := hal/utils/halcmd.c hal/utils/halcmd_commands.c hal/utils/halsh.c
 
@@ -6,13 +7,22 @@ HALCMDSRCS += hal/utils/halcmd_completion.c
 endif
 USERSRCS += $(sort $(HALCMDSRCS) $(HALSHSRCS))
 
+else # ifdef HAVE_INTERNAL_HAL
+
+HALSHSRCS := hal/utils/halsh.c
+endif # ifdef HAVE_INTERNAL_HAL
+
+USERSRCS += $(sort $(HALSHSRCS))
+
 $(call TOOBJSDEPS, $(HALSHSRCS)) : EXTRAFLAGS = -fPIC
 $(call TOOBJSDEPS, hal/utils/halsh.c) : EXTRAFLAGS += $(TCL_CFLAGS)
-../tcl/hal.so: $(call TOOBJS, $(HALSHSRCS)) ../lib/liblinuxcncini.so.0 ../lib/liblinuxcnchal.so.0
+../tcl/hal.so: $(call TOOBJS, $(HALSHSRCS)) \
+	    ../lib/liblinuxcncini.so.0 $(LIB_HAL_SO)
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CC) $(LDFLAGS) -shared $^  $(TCL_LIBS) -o $@
+	$(Q)$(CC) $(LDFLAGS) -shared $^  $(TCL_LIBS) -o $@ $(L_HAL) $(L_HALCMD)
 TARGETS += ../tcl/hal.so
 
+ifdef HAVE_INTERNAL_HAL
 ../bin/halcmd: $(call TOOBJS, $(HALCMDSRCS)) ../lib/liblinuxcncini.so.0 ../lib/liblinuxcnchal.so.0 
 	$(ECHO) Linking $(notdir $@)
 	$(Q)$(CC) $(LDFLAGS) -o $@ $^ $(READLINE_LIBS)
@@ -100,3 +110,4 @@ TARGETS += ../bin/halcompile ../bin/elbpcom
 objects/%.py: %.g
 	@mkdir -p $(dir $@)
 	$(Q)$(YAPPS) $< $@
+endif

@@ -145,6 +145,7 @@ SUBDIRS := \
     \
     hal/user_comps \
     hal/user_comps/vismach \
+    hal/utils \
     \
     po \
     \
@@ -160,7 +161,7 @@ SUBDIRS += \
     \
     hal/components hal/drivers hal/drivers/mesa-hostmot2 \
     hal/user_comps/devices hal/user_comps/mb2hal \
-    hal/user_comps/vfs11_vfd hal/classicladder hal/utils hal \
+    hal/user_comps/vfs11_vfd hal/classicladder hal \
     hal/user_comps/vfdb_vfd hal/user_comps/wj200_vfd \
     hal/user_comps/huanyang-vfd \
 	hal/user_comps/xhc-whb04b-6 \
@@ -718,8 +719,8 @@ endif # HAVE_INTERNAL_HAL
 	$(EXE) ../nc_files/M101 $(DESTDIR)$(ncfilesdir)
 	$(FILE) ../tcl/TkLinuxCNC $(DESTDIR)/etc/X11/app-defaults
 	$(EXE) $(TCL) $(DESTDIR)$(tcldir)
-ifdef HAVE_INTERNAL_HAL
 	$(FILE) ../tcl/hal.so $(DESTDIR)$(tcldir)
+ifdef HAVE_INTERNAL_HAL
 	$(FILE) Makefile.modinc $(DESTDIR)$(datadir)/linuxcnc
 endif # HAVE_INTERNAL_HAL
 	$(FILE) ../tcl/linuxcnc.so $(DESTDIR)$(tcldir)

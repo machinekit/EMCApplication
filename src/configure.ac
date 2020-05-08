@@ -219,6 +219,7 @@ AS_IF([test -n "$with_hal" -a "$with_hal" != no],
       HAL_BIN_DIR="$(pkg-config --variable=bindir $with_hal)"
       HAL_L_ULAPI="$(pkg-config --variable=lib_ulapi $with_hal)"
       HAL_L_HAL="$(pkg-config --variable=lib_hal $with_hal)"
+      HAL_L_HALCMD="$(pkg-config --variable=lib_halcmd $with_hal)"
       HAL_L_RTAPI_MATH="$(pkg-config --variable=lib_rtapi_math $with_hal)"
       MODEXT="$(pkg-config --variable=modext $with_hal)"
       REALTIME="$(pkg-config --variable=realtime $with_hal)"
@@ -238,6 +239,7 @@ AC_SUBST([HAL_BIN_DIR])
 AC_SUBST([HAL_LIBS])
 AC_SUBST([HAL_L_ULAPI])
 AC_SUBST([HAL_L_HAL])
+AC_SUBST([HAL_L_HALCMD])
 AC_SUBST([HAL_L_RTAPI_MATH])
 
 if $INTERNAL_HAL; then
