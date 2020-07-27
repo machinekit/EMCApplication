@@ -213,7 +213,27 @@ esac
 TARGET_EXTRA=
 MAIN_PACKAGE_NAME=linuxcnc
 OTHER_MAIN_PACKAGE_NAME=linuxcnc-uspace
-EXTRA_RECOMMENDS=hostmot2-firmware-all
+MAIN_PACKAGE_DESCRIPTION_TEXT=""
+DEV_PACKAGE_DESCRIPTION_TEXT=""
+MAINTAINER="Sebastian Kuzminsky <seb@highlab.com>"
+EXTRA_RECOMMENDS="linuxcnc-doc-en | linuxcnc-doc, hostmot2-firmware-all"
+read -r -d '' MAIN_PACKAGE_DESCRIPTION_TEXT <<DESCRIPTION
+motion controller for CNC machines and robots
+ LinuxCNC is the next-generation Enhanced Machine Controller which
+ provides motion control for CNC machine tools and robotic
+ applications (milling, cutting, routing, etc.).
+DESCRIPTION
+read -r -d '' DEV_PACKAGE_DESCRIPTION_TEXT <<DESCRIPTION
+PC based motion controller for real-time Linux
+ LinuxCNC is the next-generation Enhanced Machine Controller which
+ provides motion control for CNC machine tools and robotic
+ applications (milling, cutting, routing, etc.).
+ .
+ This package includes files needed to build new realtime components and
+ alternate front-ends for linuxcnc
+DESCRIPTION
+OTHER_CONFLICTING_PACKAGES=""
+
 case $TARGET in
     uspace|sim)
         if $BUILD_AUTO; then
@@ -253,19 +273,37 @@ case $TARGET in
     ;;
     machinekit-hal)
 	TARGET=machinekit-hal
-        MODULE_PATH=usr/lib/linuxcnc/modules
+        MODULE_PATH=usr/lib/machinekit/modules
 	MODULE_EXT=.so
-        KERNEL_DEPENDS=machinekit-hal
+        KERNEL_DEPENDS="machinekit-hal (>= 0.4)"
 	KERNEL_HEADERS=
 	KERNEL_VERSION=machinekit-hal
         MODUTILS_DEPENDS=
 	DRIVERS=
         EXTRA_FILES=
 	DISTRIB_NAME=ext-hal-$DISTRIB_NAME
-	MAIN_PACKAGE_NAME=linuxcnc
+	MAIN_PACKAGE_NAME=emcapplication
         OTHER_MAIN_PACKAGE_NAME=linuxcnc-uspace
         INITRD_REALTIME_PATH=
         CONFIGURE_REALTIME_ARG=--with-hal=machinekit-hal
+    EXTRA_BUILD="${EXTRA_BUILD}, machinekit-hal-dev (>= 0.4)"
+    EXTRA_RECOMMENDS="machinekit-hal-dev"
+    read -r -d '' MAIN_PACKAGE_DESCRIPTION_TEXT <<DESCRIPTION
+Enhanced Motion Controller for Machinekit-HAL
+ Run EMC2 developed as part of LinuxCNC with the power of Machinekit-HAL engine
+ Provides CNC capability and HMI for various applications (milling, cutting,
+ routing, etc.).
+DESCRIPTION
+read -r -d '' DEV_PACKAGE_DESCRIPTION_TEXT <<DESCRIPTION
+Enhanced Motion Controller for Machinekit-HAL
+ Run EMC2 developed as part of LinuxCNC with the power of Machinekit-HAL engine
+ Provides CNC capability and HMI for various applications (milling, cutting,
+ routing, etc.).
+ .
+ This package includes files needed for development and testing
+DESCRIPTION
+    OTHER_CONFLICTING_PACKAGES=", linuxcnc, linuxcnc-dev, machinekit-cnc"
+    MAINTAINER="Machinekit Bot <machinekit@eryaf.com>"
     ;;
     2.6.32-122-rtai|3.4-9-rtai-686-pae|3.16.0-9-rtai-*)
         CONFIGURE_REALTIME_ARG=--with-realtime=/usr/realtime-$KERNEL_VERSION
@@ -273,6 +311,13 @@ case $TARGET in
     *)
 	echo "your kernel '$TARGET' is not known. There might be needed dependencies which won't get set automatically."
 esac
+
+MAIN_PACKAGE_DESCRIPTION_TEXT="$(printf '%s\n' "$MAIN_PACKAGE_DESCRIPTION_TEXT" \
+    | sed 's,[\/&],\\&,g;s/$/\\/')"
+DEV_PACKAGE_DESCRIPTION_TEXT="$(printf '%s\n' "$DEV_PACKAGE_DESCRIPTION_TEXT" \
+    | sed 's,[\/&],\\&,g;s/$/\\/')"
+MAIN_PACKAGE_DESCRIPTION_TEXT=${MAIN_PACKAGE_DESCRIPTION_TEXT%?}
+DEV_PACKAGE_DESCRIPTION_TEXT=${DEV_PACKAGE_DESCRIPTION_TEXT%?}
 
 subst () {
 sed \
@@ -306,6 +351,10 @@ sed \
     -e "s#@XENOMAI_ARCHITECTURE@#$XENOMAI_ARCHITECTURE#g" \
     -e "s|@YAPPS_RUNTIME@|$YAPPS_RUNTIME|g" \
     -e "s#@ENABLE_BUILD_DOCUMENTATION@#$ENABLE_BUILD_DOCUMENTATION#g" \
+    -e "s#@OTHER_CONFLICTING_PACKAGES@#$OTHER_CONFLICTING_PACKAGES#g" \
+    -e "s#@MAIN_PACKAGE_DESCRIPTION_TEXT@#$MAIN_PACKAGE_DESCRIPTION_TEXT#g" \
+    -e "s#@DEV_PACKAGE_DESCRIPTION_TEXT@#$DEV_PACKAGE_DESCRIPTION_TEXT#g" \
+    -e "s#@MAINTAINER@#$MAINTAINER#g" \
     $*
 }
 
@@ -327,21 +376,64 @@ fi
 echo >> control
 subst control.main-pkg.in >> control
 
+do_emcapplication_changelog() {
+    DISTRO_CODENAME="$(lsb_release -cs)"
+    DISTRO_NAME="$(lsb_release -is)"
+    DISTRO_UC="$(echo $DISTRO_CODENAME | sed 's/^[[:space:]]*//g' | sed -e 's/\b\(.\)/\u\1/g')"
+    DISTRO_LC="$(echo $DISTRO_CODENAME | sed 's/^[[:space:]]*//g')"
+    COMMIT_COUNT="$(git rev-list --count HEAD)"
+    EMCAVERSION="$(git show HEAD:VERSION | cut -d ' ' -f 1).${COMMIT_COUNT}-1.git$(git rev-parse --short HEAD)~${DISTRO_LC}"
+    COMMIT="$(git rev-parse HEAD)"
+    AUTHOR_NAME="$(git show -s --pretty=%an $COMMIT)"
+    AUTHOR_EMAIL="$(git show -s --format='%ae' $COMMIT)"
+    MESSAGE_SHORT="$(git show -s --format=format:%s HEAD)"
+    CURRENT_DATE="$(date -R)"
+    DEB_HOST_ARCH="$(dpkg-architecture -qDEB_HOST_ARCH)"
+
+    read -r -d '' CHANGELOG_ITEM <<CHANGELOG
+linuxcnc (${EMCAVERSION}) ${DISTRO_UC}; urgency=low
+
+  * Machinekit EMCApplication is build from LinuxCNC code, but is not part of
+    LinuxCNC and as such the lower entries are NOT accurate
+  * Commit: ${COMMIT}
+  * ${MESSAGE_SHORT}
+  * Build as an ${COMMIT_COUNT}th rebuild for ${DISTRO_NAME} ${DISTRO_UC} ${DEB_HOST_ARCH}
+
+ -- ${AUTHOR_NAME} <${AUTHOR_EMAIL}>  ${CURRENT_DATE}
+CHANGELOG
+
+    printf "%b\n" \
+           "Adding a new item to changelog:"                                   \
+           "=================================================================" \
+           "$CHANGELOG_ITEM"
+    printf "%s\n\n" "$CHANGELOG_ITEM" | cat - changelog > temp && \
+        mv temp changelog && rm -f temp
+    echo "New package version number added to changelog"
+}
+
 if [ "$TARGET" == "uspace" ]; then
-    subst linuxcnc-dev.files.in linuxcnc-hal-dev.files.in > linuxcnc-uspace-dev.files
+    subst linuxcnc-dev.files.in linuxcnc-hal-dev.files.in > ${MAIN_PACKAGE_NAME}-dev.files
 elif [ "$TARGET" == "machinekit-hal" ]; then
-    subst linuxcnc-dev.files.in > linuxcnc-dev.files
+    subst linuxcnc-dev.files.in > ${MAIN_PACKAGE_NAME}-dev.files
+    do_emcapplication_changelog
 else
-    subst linuxcnc-dev.files.in linuxcnc-hal-dev.files.in > linuxcnc-dev.files
-    echo "$MODULE_PATH/Module.symvers" >> linuxcnc-dev.files
+    subst linuxcnc-dev.files.in linuxcnc-hal-dev.files.in > ${MAIN_PACKAGE_NAME}-dev.files
+    echo "$MODULE_PATH/Module.symvers" >> ${MAIN_PACKAGE_NAME}-dev.files
 fi
 
 subst rules.in > rules; chmod +x rules
 
-if [ -f $EXTRAS/linuxcnc.files ]; then
-    subst linuxcnc.files.in $DRIVERS $EXTRAS/linuxcnc.files > $MAIN_PACKAGE_NAME.files
+if [ "$TARGET" == "machinekit-hal" ]; then
+    MAIN_FILES_FILE="emcapplication.files.in"
+    EXTRA_FILES_FILE="emcapplication.files"
 else
-    subst linuxcnc.files.in $DRIVERS > $MAIN_PACKAGE_NAME.files
+    MAIN_FILES_FILE="linuxcnc.files.in"
+    EXTRA_FILES_FILE="linuxcnc.files"
+fi
+if [ -f $EXTRAS/linuxcnc.files ]; then
+    subst ${MAIN_FILES_FILE} $DRIVERS $EXTRAS/${EXTRA_FILES_FILE} > $MAIN_PACKAGE_NAME.files
+else
+    subst ${MAIN_FILES_FILE} $DRIVERS > $MAIN_PACKAGE_NAME.files
 fi
 
 if [ -n "$ENABLE_BUILD_DOCUMENTATION" ]; then

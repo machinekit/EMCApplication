@@ -837,6 +837,11 @@ AS_IF([$INTERNAL_HAL], [
 	*) EMC2_RTLIB_DIR=$MODULE_DIR/linuxcnc
     esac
     REALTIME=/etc/init.d/realtime
+],[
+    case $MODULE_DIR in
+        */machinekit*) EMC2_RTLIB_DIR=$MODULE_DIR ;;
+	*) EMC2_RTLIB_DIR=$MODULE_DIR/usr/lib/machinekit/modules
+    esac
 ])  dnl AS_IF([$INTERNAL_HAL])
 fi
 
@@ -844,9 +849,7 @@ AC_DEFINE_UNQUOTED([EMC2_HOME], "$EMC2_HOME", [Prefix or RIP directory])
 AC_DEFINE_UNQUOTED([EMC2_BIN_DIR], "$EMC2_BIN_DIR", [Directory for binaries])
 AC_DEFINE_UNQUOTED([EMC2_TCL_DIR], "$EMC2_TCL_DIR", [Directory for tcl scripts])
 AC_DEFINE_UNQUOTED([EMC2_HELP_DIR], "$EMC2_HELP_DIR", [Directory for help files])
-AS_IF([$INTERNAL_HAL], [
 AC_DEFINE_UNQUOTED([EMC2_RTLIB_DIR], "$EMC2_RTLIB_DIR", [Directory of realtime system])
-])  dnl AS_IF([$INTERNAL_HAL])
 AC_DEFINE_UNQUOTED([EMC2_LANG_DIR], "$EMC2_LANG_DIR", [Directory for tcl translation files])
 AC_DEFINE_UNQUOTED([EMC2_PO_DIR], "$EMC2_PO_DIR", [Directory for po/mo translation files])
 AC_DEFINE_UNQUOTED([EMC2_CONFIG_DIR], "$EMC2_CONFIG_DIR", [Directory for configuration files])
@@ -1832,8 +1835,8 @@ AC_CONFIG_FILES(../share/desktop-directories/linuxcnc-cnc.directory)
 AC_CONFIG_FILES(../share/desktop-directories/linuxcnc-ref.directory)
 AC_CONFIG_FILES(../share/desktop-directories/linuxcnc-doc.directory)
 AC_CONFIG_FILES(../share/menus/CNC.menu)
-AS_IF([$INTERNAL_HAL], [
 AC_CONFIG_FILES([../scripts/rtapi.conf])
+AS_IF([$INTERNAL_HAL], [
 AC_CONFIG_FILES([../scripts/halrun], [chmod +x ../scripts/halrun])
 AC_CONFIG_FILES([../scripts/realtime], [chmod +x ../scripts/realtime])
 AC_CONFIG_FILES(Makefile.modinc)

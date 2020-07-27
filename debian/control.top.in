@@ -1,7 +1,7 @@
 Source: linuxcnc
 Section: misc
 Priority: extra
-Maintainer: Sebastian Kuzminsky <seb@highlab.com>
+Maintainer: @MAINTAINER@
 Build-Depends: debhelper (>= 6),
     @PYTHON_PACKAGING_DEPENDS@,
     @KERNEL_DEPENDS@,
@@ -40,7 +40,7 @@ Vcs-Git: git://github.com/linuxcnc/linuxcnc.git
 
 Package: @MAIN_PACKAGE_NAME@-dev
 Architecture: any
-Conflicts: linuxcnc-sim-dev, @OTHER_MAIN_PACKAGE_NAME@-dev
+Conflicts: linuxcnc-sim-dev, @OTHER_MAIN_PACKAGE_NAME@-dev @OTHER_CONFLICTING_PACKAGES@
 Depends: g++, @KERNEL_HEADERS@,
     python-serial,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
@@ -49,10 +49,4 @@ Depends: g++, @KERNEL_HEADERS@,
     udev,
     @YAPPS_RUNTIME@
 Section: libs
-Description: PC based motion controller for real-time Linux
- LinuxCNC is the next-generation Enhanced Machine Controller which
- provides motion control for CNC machine tools and robotic
- applications (milling, cutting, routing, etc.).
- .
- This package includes files needed to build new realtime components and
- alternate front-ends for linuxcnc
+Description: @DEV_PACKAGE_DESCRIPTION_TEXT@

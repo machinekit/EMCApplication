@@ -2,11 +2,8 @@ name: Build CI
 
 on:
   push:
-  pull_request:
-  release:
-    types: [published]
-  check_suite:
-    types: [rerequested]
+    branches-ignore:
+    - '*'
 
 jobs:
   rip-and-test:

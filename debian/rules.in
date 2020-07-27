@@ -99,7 +99,20 @@ ifeq "$(kernel_version)" "machinekit-hal"
 	rm debian/tmp/usr/lib/python2.7/dist-packages/hal.py
 	rm debian/tmp/usr/lib/python2.7/dist-packages/hal_glib.py
 	rm debian/tmp/usr/lib/python2.7/dist-packages/linux_event.py
+	rm debian/tmp/usr/share/applications/linuxcnc-pncconf.desktop
+	rm debian/tmp/usr/share/applications/linuxcnc-stepconf.desktop
+	rm debian/tmp/usr/share/applications/linuxcnc-latency.desktop
+	rm -rf debian/tmp/usr/share/doc/linuxcnc/examples/sample-configs/apps/*
+	rm -rf debian/tmp/usr/share/doc/linuxcnc/examples/sample-configs/attic/*
+	rm -rf debian/tmp/usr/share/doc/linuxcnc/examples/sample-configs/by_interface/*
+	rm -rf debian/tmp/usr/share/doc/linuxcnc/examples/sample-configs/by_machine/*
+	rm debian/tmp/usr/share/doc/linuxcnc/rtfaults.txt
+	rm -rf debian/tmp/usr/share/linuxcnc/pncconf/*
+	rm -rf debian/tmp/usr/share/linuxcnc/stepconf/*
+	find debian/tmp/usr/share/man -name '*' -delete
+	find debian/tmp/lib/udev/rules.d -name '*' -delete
 endif
+	rm debian/tmp/emcapplication.files
 	dh_movefiles
 ifeq "$(enable_build_documentation)" ""
 	find debian/tmp/usr/share/applications -name linuxcnc-*.desktop -delete
