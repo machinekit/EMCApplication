@@ -4,9 +4,9 @@ import subprocess
 
 from PyQt5 import QtGui, QtCore, QtWidgets, uic
 import traceback
-
+from qtvcp.widgets.widget_baseclass import _HalWidgetBase
 # Set up logging
-import logger
+from . import logger
 log = logger.getLogger(__name__)
 # Set the log level for this module
 log.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -55,7 +55,6 @@ class MyEventFilter(QtCore.QObject):
                 if (self.has_key_p_handler):
                     handled = self.w.handler_instance.keypress_event__(receiver,event)
                 elif self.has_process_key_handler:
-                    if event.isAutoRepeat():return True
                     p,k,c,s,ctrl = self.process_event(event,True)
                     handled = self.w.handler_instance.processed_key_event__(receiver,event,p,k,c,s,ctrl)
                 if handled: return True
@@ -65,7 +64,6 @@ class MyEventFilter(QtCore.QObject):
                 if (self.has_key_r_handler):
                     handled = self.w.handler_instance.keyrelease_event__(event)
                 elif self.has_process_key_handler:
-                    if event.isAutoRepeat():return True
                     p,k,c,s,ctrl = self.process_event(event,False)
                     handled = self.w.handler_instance.processed_key_event__(receiver,event,p,k,c,s,ctrl)
                 if handled: return True
@@ -93,6 +91,9 @@ class _VCPWindow(QtWidgets.QMainWindow):
         self.PREFS_ = None
         self.originalCloseEvent_ = self.closeEvent
         self._halWidgetList = []
+        # make an instance with embeded variables so they
+        # are available to all subclassed objects
+        _HalWidgetBase(halcomp,path,self)
 
     def registerHalWidget(self, widget):
         self._halWidgetList.append(widget)
@@ -119,7 +120,7 @@ class _VCPWindow(QtWidgets.QMainWindow):
 
     def load_resources(self):
         def qrccompile(qrcname,qrcpy):
-            log.info('Compiling qrc: {}'.format(qrcname))
+            log.info('Compiling qrc: {} to \n {}'.format(qrcname,qrcpy))
             try:
                 subprocess.call(["pyrcc5","-o","{}".format(qrcpy),"{}".format(qrcname)])
             except OSError as e:
@@ -143,28 +144,33 @@ class _VCPWindow(QtWidgets.QMainWindow):
         else:
             DIR = self.PATHS.PANELDIR
             BNAME = self.PATHS.BASENAME
-        qrcname = os.path.join(DIR, BNAME, BNAME+'.qrc')
-        qrcpy = os.path.join(DIR, BNAME, 'resources.py')
+        qrcname = self.PATHS.QRC
+        qrcpy = self.PATHS.QRCPY
 
         # Is there a qrc file in directory?
-        if os.path.isfile(qrcname):
+        if qrcname is not None:
             qrcTime =  os.stat(qrcname).st_mtime
-            if os.path.isfile(qrcpy):
+            if qrcpy is not None and os.path.isfile(qrcpy):
                 pyTime = os.stat(qrcpy).st_mtime
                 # is py older then qrc file?
                 if pyTime < qrcTime:
                     qrccompile(qrcname,qrcpy)
-            # there is a qrc file but no resources.py file...
+            # there is a qrc file but no resources.py file...compile it
             else:
                 qrccompile(qrcname,qrcpy)
 
-            # there is a qrc file but no resources.py file...
         # is there a resource.py in the directory?
-        if os.path.isfile(qrcpy):
+        # if so add a path to it so we can import it.
+        if qrcpy is not None and os.path.isfile(qrcpy):
             try:
-                import resources
+                sys.path.insert(0, os.path.join(DIR, BNAME))
+                import importlib
+                importlib.import_module('resources',os.path.join(DIR, BNAME))
+                log.info('Imported resources.py filed: {}'.format(qrcpy))
             except Exception as e:
-                log.warning('couldn not load () resource file: {}'.format(qrcpy, e))
+                log.warning('could not load {} resource file: {}'.format(qrcpy, e))
+        else:
+            log.info('No resource file to load: {}'.format(qrcpy))
 
     def instance(self):
         self.load_resources()
@@ -195,7 +201,7 @@ Python Error:\n {}'''.format(str(e))
             DIR =self.PATHS.PANELDIR
             BNAME = self.PATHS.BASENAME
         # apply one word system theme
-        if fname in (QtWidgets.QStyleFactory.keys()):
+        if fname in (list(QtWidgets.QStyleFactory.keys())):
             QtWidgets.qApp.setStyle(fname)
             return
         
@@ -236,7 +242,7 @@ Python Error:\n {}'''.format(str(e))
                 log.error('QSS Filepath Error: {}'.format(qssname))
                 log.error("{} theme not available".format(fname))
                 current_theme = str(QtWidgets.qApp.style().objectName())
-                for i in (QtWidgets.QStyleFactory.keys()):
+                for i in (list(QtWidgets.QStyleFactory.keys())):
                     themes += (', {}'.format(i))
                 log.error('QTvcp Available system themes: green<{}> {}'.format(current_theme, themes))
 
@@ -270,7 +276,7 @@ Python Error:\n {}'''.format(str(e))
 
             try:
                 mod = __import__(basename)
-            except ImportError, e:
+            except ImportError as e:
                 log.critical("module '{}' skipped - import error: ".format(basename), exc_info=e)
                 sys.exit(0)
                 continue
@@ -293,9 +299,9 @@ Python Error:\n {}'''.format(str(e))
                 for object in objlist:
                     log.debug("Registering handlers in module {} object {}".format(mod.__name__, object))
                     if isinstance(object, dict):
-                        methods = dict.items()
+                        methods = list(dict.items())
                     else:
-                        methods = map(lambda n: (n, getattr(object, n, None)), dir(object))
+                        methods = [(n, getattr(object, n, None)) for n in dir(object)]
                     for method,f in methods:
                         if method.startswith('_'):
                             continue

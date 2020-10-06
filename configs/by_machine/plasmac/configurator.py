@@ -498,7 +498,7 @@ class configurator:
         # if version before splitting config directory
         elif self.b4_split_config_dir():
             return 0.139
-        # if version before splitting config directory
+        # if version before fixing the splitting of config directory
         elif self.b4_fix_config_dir_split():
             return 0.143
         # must be the latest version
@@ -516,7 +516,7 @@ class configurator:
             if self.configureType == 'reconfigure':
                 self.reconfigure()
                 self.W.hide()
-                self.dialog_ok('SUCCESS','\nReconfigure is complete.\n\n')
+                self.dialog_ok('RECONFIGURE','\nReconfigure is complete.\n\n')
                 return
             if not self.check_new_path(): return
         display = self.get_display()
@@ -524,20 +524,43 @@ class configurator:
         if self.configureType == 'upgrade':
             if self.check_typos():
                 self.fix_typos()
-            version = self.check_version()
-            if version == self.latestMajorUpgrade:
-                self.make_links(display, version)
-                print('\nUpgrade not required from v{:0.3f} or later\n'.format(self.latestMajorUpgrade))
+            versionMajor = self.check_version()
+            if versionMajor > 0.139:
+                plasmacPath = '/plasmac'
+            else:
+                plasmacPath = ''
+            try:
+                with open('{}{}/plasmac_config.py'.format(self.configDir, plasmacPath), 'r') as verFile:
+                    for line in verFile:
+                        if 'self.plasmacVersion =' in line:
+                            self.versionCurrent = float(line.split('PlasmaC v')[1].replace('\'',''))
+                            break
+            except:
+                self.versionCurrent = 0.0
+            if versionMajor == self.latestMajorUpgrade:
+                self.make_links(display, versionMajor)
+                with open('{}/plasmac/plasmac_config.py'.format(self.configDir), 'r') as verFile:
+                    for line in verFile:
+                        if 'self.plasmacVersion =' in line:
+                            self.versionNew = float(line.split('PlasmaC v')[1].replace('\'',''))
+                            break
+                if float(self.versionNew) > float(self.versionCurrent):
+                    if self.versionCurrent > 0:
+                        msg = '\nUpgraded from v{:0.3f} to v{:0.3f}\n'.format(self.versionCurrent, self.versionNew)
+                    else:
+                        msg = '\nUpgraded from unknown version to v{:0.3f}\n'.format( self.versionNew)
+                else:
+                    msg = '\nUpgrade not required.\n\nv{:0.3f} is the latest version\n'.format(self.versionCurrent)
                 if len(sys.argv) == 3 and self.configureType == 'upgrade':
                     msg = '\nPlasmaC automatic upgrade has failed.\n\n'
                     msg += 'Check for the correct version number in:\n\n'
                     msg += '{}\n\n'.format(self.orgIniFile)
                     self.dialog_ok('FAILURE', msg)
                     sys.exit()
+                self.dialog_ok('UPGRADE', msg)
+                sys.exit()
                 return
-            else:
-                print('\nUpgrading from a version before v{:0.3f} to v{:0.3f} or later\n'.format(version + 0.001, self.latestMajorUpgrade))
-            if version < 0.140:
+            if versionMajor < 0.140:
                 # make sure no plasmac file exists
                 if os.path.exists('{}/plasmac'.format(self.configDir)):
                     if not os.path.isdir('{}/plasmac'.format(self.configDir)):
@@ -545,12 +568,21 @@ class configurator:
                 # create backups dir if required
                 if not os.path.exists('{}/backups'.format(self.configDir)):
                     os.makedirs('{}/backups'.format(self.configDir))
-            self.upgrade_ini_file(version,display)
-            self.upgrade_material_file(version)
-            self.upgrade_connections_file(version)
-            self.upgrade_config_files(version)
-            self.make_links(display, version)
-            if version < 0.140:
+            self.upgrade_ini_file(versionMajor,display)
+            self.upgrade_material_file(versionMajor)
+            self.upgrade_connections_file(versionMajor)
+            self.upgrade_config_files(versionMajor)
+            self.make_links(display, versionMajor)
+            with open('{}/plasmac/plasmac_config.py'.format(self.configDir), 'r') as verFile:
+                for line in verFile:
+                    if 'self.plasmacVersion =' in line:
+                        self.versionNew = float(line.split('PlasmaC v')[1].replace('\'',''))
+                        break
+            if self.versionCurrent > 0:
+                upg = '\nUpgraded from v{:0.3f} to v{:0.3f}\n'.format(self.versionCurrent, self.versionNew)
+            else:
+                upg = '\nUpgraded from unknown version to v{:0.3f}\n'.format(self.versionNew)
+            if versionMajor < 0.140:
             # move old backup files to backups dir
                 for file in os.listdir(self.configDir):
                     if '_original' in file or 'cfg.old' in file or 'hal.old' in file or 'ini.old' in file:
@@ -558,10 +590,16 @@ class configurator:
                     elif '.pyc' in file:
                         os.remove(os.path.join(self.configDir,file))
             if len(sys.argv) == 3:
-                self.dialog_ok('SUCCESS','\nPlasmaC has been automatically upgraded.\n\nLinuxCNC will need to be restarted.\n\n')
-                sys.exit()
-            self.W.hide()
-            self.dialog_ok('SUCCESS','\nPlasmaC Upgrade has completed.\n\n')
+                msg = '\nPlasmaC has been automatically upgraded.\n'
+                msg += upg
+                msg += '\nLinuxCNC will need to be restarted.\n\n'
+            else:
+                self.W.hide()
+                msg = '\nPlasmaC Upgrade has completed.\n'
+                msg += '{}\n\n'.format(upg)
+            self.dialog_ok('UPGRADE', msg)
+            print(msg)
+            sys.exit()
             return
         if not self.copy_ini_and_hal_files(): return
         if not self.get_traj_info(self.readIniFile,display): return
@@ -571,6 +609,12 @@ class configurator:
         if not self.write_postgui_hal_file(): return
         if not self.write_newini_file(display): return
         if not self.make_links(display, 'dummy'): return
+        with open('{}/plasmac/plasmac_config.py'.format(self.configDir), 'r') as verFile:
+            for line in verFile:
+                if 'self.plasmacVersion =' in line:
+                    self.versionNew = float(line.split('PlasmaC v')[1].replace('\'',''))
+                    break
+        print('\nInstalled PlasmaC v{:0.3f}\n'.format(self.versionNew))
         if not self.write_material_file(): return
         self.W.hide()
         self.success_dialog()
@@ -659,9 +703,9 @@ class configurator:
                     return False
         return True
 
-    def upgrade_connections_file(self,version):
+    def upgrade_connections_file(self,versionMajor):
         # add a connections.hal file for an upgrade from 0.0
-        if version == 0.000:
+        if versionMajor == 0.000:
             inFile = open('{}/plasmac.hal'.format(os.path.dirname(self.orgIniFile)), 'r')
             outFile = open('{}/{}_connections.hal'.format(self.configDir,self.machineName.lower()), 'w')
             outFile.write(\
@@ -708,7 +752,7 @@ class configurator:
             inFile.close()
             outFile.close()
         # add scribe for an upgrade from 0.058 or earlier
-        if version < 0.059:
+        if versionMajor < 0.059:
             conFile = '{}/{}_connections.hal'.format(self.configDir,self.machineName.lower())
             if os.path.exists(conFile):
                 shutil.copy(conFile,'{}.old058'.format(conFile))
@@ -742,7 +786,7 @@ class configurator:
             else:
                 print('No connections file to upgrade')
         # add spotting for an upgrade from 0.066 or earlier
-        if version < 0.067:
+        if versionMajor < 0.067:
             conFile = '{}/{}_connections.hal'.format(self.configDir,self.machineName.lower())
             if os.path.exists(conFile):
                 shutil.copy(conFile,'{}.old066'.format(conFile))
@@ -755,7 +799,7 @@ class configurator:
                     else:
                         outFile.write(line)
         # add automatic upgrades from 0.089 or earlier
-        if version < 0.090:
+        if versionMajor < 0.090:
             conFile = '{}/{}_connections.hal'.format(self.configDir,self.machineName.lower())
             if os.path.exists(conFile):
                 shutil.copy(conFile,'{}.old089'.format(conFile))
@@ -773,8 +817,8 @@ class configurator:
                 inFile.close()
                 outFile.close()
 
-    def upgrade_config_files(self,version):
-        if version < 0.090:
+    def upgrade_config_files(self,versionMajor):
+        if versionMajor < 0.090:
             # add automatic upgrades from 0.089 or earlier
             cfgFile = '{}/{}_config.cfg'.format(self.configDir,self.machineName.lower())
             if os.path.exists(cfgFile):
@@ -793,9 +837,9 @@ class configurator:
                 inFile.close()
                 outFile.close()
 
-    def upgrade_ini_file(self,version,display):
+    def upgrade_ini_file(self,versionMajor,display):
         # add a connections.hal file for an upgrade from 0.0
-        if version == 0.000:
+        if versionMajor == 0.000:
             shutil.copy(self.orgIniFile,'{}.old000'.format(self.orgIniFile))
             inFile = open('{}.old000'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -812,7 +856,7 @@ class configurator:
             outFile.close()
         # add paused-motion-time and torch-pulse-time for an upgrade from 0.010 or earlier
         # add choice of run tab or run panel for an upgrade from 0.010 or earlier
-        if version < 0.011:
+        if versionMajor < 0.011:
             shutil.copy(self.orgIniFile,'{}.old010'.format(self.orgIniFile))
             inFile = open('{}.old010'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -850,7 +894,7 @@ class configurator:
             inFile.close()
             outFile.close()
         # add scribe for an upgrade from 0.058 or earlier
-        if version < 0.059:
+        if versionMajor < 0.059:
             shutil.copy(self.orgIniFile,'{}.old058'.format(self.orgIniFile))
             inFile = open('{}.old058'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -880,7 +924,7 @@ class configurator:
             inFile.close()
             outFile.close()
         # add spotting for an upgrade from 0.066 or earlier
-        if version < 0.067:
+        if versionMajor < 0.067:
             shutil.copy(self.orgIniFile,'{}.old066'.format(self.orgIniFile))
             inFile = open('{}.old066'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -893,7 +937,7 @@ class configurator:
             inFile.close()
             outFile.close()
         # add change consumables for an upgrade from 0.074 or earlier
-        if version < 0.075:
+        if versionMajor < 0.075:
             shutil.copy(self.orgIniFile,'{}.old074'.format(self.orgIniFile))
             inFile = open('{}.old074'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -931,7 +975,7 @@ class configurator:
             inFile.close()
             outFile.close()
         # add Extras panel for an upgrade from 0.079 or earlier
-        if version < 0.080:
+        if versionMajor < 0.080:
             shutil.copy(self.orgIniFile,'{}.old079'.format(self.orgIniFile))
             inFile = open('{}.old079'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -1008,7 +1052,7 @@ class configurator:
             inFile.close()
             outFile.close()
         #add pause at end for an upgrade from 0.087 or earlier
-        if version < 0.088:
+        if versionMajor < 0.088:
             shutil.copy(self.orgIniFile,'{}.old087'.format(self.orgIniFile))
             inFile = open('{}.old087'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -1020,7 +1064,7 @@ class configurator:
             inFile.close()
             outFile.close()
         # add automatic upgrades from 0.089 or earlier
-        if version < 0.090:
+        if versionMajor < 0.090:
             shutil.copy(self.orgIniFile,'{}.old089'.format(self.orgIniFile))
             inFile = open('{}.old089'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -1034,7 +1078,7 @@ class configurator:
             inFile.close()
             outFile.close()
         # add powermax comms for an upgrade from 0.096 or earlier
-        if version < 0.097:
+        if versionMajor < 0.097:
             shutil.copy(self.orgIniFile,'{}.old096'.format(self.orgIniFile))
             inFile = open('{}.old096'.format(self.orgIniFile), 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -1051,7 +1095,7 @@ class configurator:
             inFile.close()
             outFile.close()
 
-        if version < 0.140:
+        if versionMajor < 0.140:
             bkpFile = '{}/backups/{}.old139'.format(self.configDir, os.path.basename(self.orgIniFile))
             shutil.copy(self.orgIniFile,bkpFile)
             inFile = open(bkpFile, 'r')
@@ -1059,17 +1103,17 @@ class configurator:
             for line in inFile:
                 if line.startswith('LAST_UPGRADE') or line.startswith('LAST_MAJOR_UPGRADE'):
                     line = 'LAST_MAJOR_UPGRADE      = 0.140\n'
-                elif './test/plasmac_' in line:
+                elif './test/plasmac_' in line and not './plasmac' in line:
                     line = line.replace('./test/plasmac_', './plasmac/test/plasmac_')
                 elif './plasmac_gcode' in line:
                     line = line.replace('./plasmac_gcode', './plasmac/plasmac_gcode')
-                elif 'SUBROUTINE_PATH' in line:
+                elif 'SUBROUTINE_PATH' in line and not './plasmac' in line:
                     line = line.replace('./:', './:./plasmac:')
-                elif 'USER_M_PATH' in line:
+                elif 'USER_M_PATH' in line and not './plasmac' in line:
                     line = line.replace(' ./', ' ./:./plasmac')
-                elif 'plasmac.tcl' in line:
+                elif 'plasmac.tcl' in line and not './plasmac' in line:
                     line = line.replace('plasmac.tcl', './plasmac/plasmac.tcl')
-                elif 'plasmac_axis.py' in line:
+                elif 'plasmac_axis.py' in line and not './plasmac' in line:
                     line = line.replace('plasmac_axis.py', './plasmac/plasmac_axis.py')
                 elif 'EMBED_TAB_COMMAND' in line:
                     if 'plasmac_buttons' in line:
@@ -1098,9 +1142,8 @@ class configurator:
             inFile.close()
             outFile.close()
 
-        if version < 0.144:
-            print ('v less than 144')
-            bkpFile = '{}/backups/{}.old139'.format(self.configDir, os.path.basename(self.orgIniFile))
+        if versionMajor < 0.144:
+            bkpFile = '{}/backups/{}.old143'.format(self.configDir, os.path.basename(self.orgIniFile))
             shutil.copy(self.orgIniFile,bkpFile)
             inFile = open(bkpFile, 'r')
             outFile = open('{}'.format(self.orgIniFile), 'w')
@@ -1113,7 +1156,7 @@ class configurator:
             inFile.close()
             outFile.close()
 
-    def upgrade_material_file(self,version):
+    def upgrade_material_file(self,versionMajor):
         materialFile = '{}/{}_material.cfg'.format(self.configDir,self.machineName.lower())
         if os.path.exists(materialFile):
             inFile = open(materialFile, 'r')
@@ -1146,7 +1189,7 @@ class configurator:
                 inFile.close()
                 outFile.close()
             #add pause at end for an upgrade from 0.087 or earlier
-            if version < 0.088:
+            if versionMajor < 0.088:
                 shutil.copy(materialFile,'{}.old087'.format(materialFile))
                 inFile = open('{}.old087'.format(materialFile), 'r')
                 outFile = open(materialFile, 'w')
@@ -1174,7 +1217,7 @@ class configurator:
                     else:
                         outFile.write(line)
             #add powermax comms for an upgrade from 0.096 or earlier
-            if version < 0.097:
+            if versionMajor < 0.097:
                 shutil.copy(materialFile,'{}.old096'.format(materialFile))
                 inFile = open('{}.old096'.format(materialFile), 'r')
                 outFile = open(materialFile, 'w')
@@ -1356,8 +1399,8 @@ class configurator:
                 for param in ['IPADDRESS','ENCODERS','STEPGENS','PWMGENS','SSERIAL_PORT']:
                     if param in hostmot:
                         line = line.replace('[HOSTMOT2]' + param,hostmot[param])
-            # comment out old spindle lines
-            elif 'spindle' in line.lower():
+            # comment out old spindle and halui lines
+            elif 'spindle' in line.lower() or 'halui.machine.is-on' in line.lower():
                 line = '# {}'.format(line)
             # comment out old toolchange lines
             elif 'hal_manualtoolchange' in line or 'iocontrol.0.tool' in line:
@@ -1379,33 +1422,40 @@ class configurator:
                 '# being overwritten by updates or pncconf/stepconf changes\n\n'\
                 '# Other customisations may be placed here as well\n'\
                 '# This file is built by the configurator in your configuration directory\n\n'\
-                '#***** debounce for the float, ohmic and breakaway switches *****\n'\
-                '# the lower the delay here the better\n'\
-                '# each 1 is a 0.001mm (0.00004") increase in probed height result\n'\
-                'loadrt  debounce          cfg=3\n'\
-                'setp    debounce.0.delay  5\n'\
-                'addf    debounce.0        servo-thread\n\n'\
-                '#***** arc voltage lowpass cutoff frequency *****\n'\
-                '#***** change to the cutoff frequency you require *****\n'\
+                '#***** DEBOUNCE FOR THE INPUTS *****\n'\
+                'loadrt dbounce names=db_breakaway,db_float,db_ohmic,db_arc-ok\n'\
+                'addf db_float     servo-thread\n'\
+                'addf db_ohmic     servo-thread\n'\
+                'addf db_breakaway servo-thread\n'\
+                'addf db_arc-ok    servo-thread\n'\
+                '# for the float and ohmic inputs\n'\
+                '# each increment in delay is a 0.001mm (0.00004") increase in any probed height result\n'\
+                'setp db_float.delay     5\n'\
+                'setp db_ohmic.delay     5\n'\
+                'setp db_breakaway.delay 5\n'\
+                'setp db_arc-ok.delay    5\n\n'\
+                '#***** ARC VOLTAGE LOWPASS FILTER *****\n'\
+                '# set the cutoff frequency if required\n'\
                 'setp plasmac.lowpass-frequency 0\n\n'\
-                '#***** the joint associated with the Z axis *****\n')
+                '#***** THE JOINT ASSOCIATED WITH THE Z AXIS *****\n')
             outFile.write('net plasmac:axis-position joint.{:d}.pos-fb => plasmac.axis-z-position\n\n'.format(self.zJoint))
+            outFile.write('#***** PLASMA CONNECTIONS *****\n')
             if self.arcVoltPin.get_text() and (self.mode == 0 or self.mode == 1):
                 outFile.write('net plasmac:arc-voltage-in {} => plasmac.arc-voltage-in\n'.format(self.arcVoltPin.get_text()))
             if self.arcOkPin.get_text() and (self.mode == 1 or self.mode == 2):
-                outFile.write('net plasmac:arc-ok-in {} => plasmac.arc-ok-in\n'.format(self.arcOkPin.get_text()))
+                outFile.write('net plasmac:arc-ok-in {} => db_arc-ok.in\n'.format(self.arcOkPin.get_text()))
             if self.floatPin.get_text():
-                outFile.write('net plasmac:float-switch {} => debounce.0.0.in\n'.format(self.floatPin.get_text()))
+                outFile.write('net plasmac:float-switch {} => db_float.in\n'.format(self.floatPin.get_text()))
             elif not self.floatPin.get_text():
-                outFile.write('# net plasmac:float-switch {YOUR FLOAT SWITCH PIN} => debounce.0.0.in\n')
+                outFile.write('# net plasmac:float-switch {YOUR FLOAT SWITCH PIN} => db_float.in\n')
             if self.breakPin.get_text():
-                outFile.write('net plasmac:breakaway {} => debounce.0.1.in\n'.format(self.breakPin.get_text()))
+                outFile.write('net plasmac:breakaway {} => db_breakaway.in\n'.format(self.breakPin.get_text()))
             elif not self.breakPin.get_text():
-                outFile.write('# net plasmac:breakaway {YOUR BREAKAWAY PIN} => debounce.0.1.in\n')
+                outFile.write('# net plasmac:breakaway {YOUR BREAKAWAY PIN} => db_breakaway.in\n')
             if self.ohmicInPin.get_text():
-                outFile.write('net plasmac:ohmic-probe {} => debounce.0.2.in\n'.format(self.ohmicInPin.get_text()))
+                outFile.write('net plasmac:ohmic-probe {} => db_ohmic.in\n'.format(self.ohmicInPin.get_text()))
             elif not self.ohmicInPin.get_text():
-                outFile.write('# net plasmac:ohmic-probe {YOUR OHMIC PROBE PIN} => debounce.0.2.in\n')
+                outFile.write('# net plasmac:ohmic-probe {YOUR OHMIC PROBE PIN} => db_ohmic.in\n')
             if self.ohmicOutPin.get_text():
                 outFile.write('net plasmac:ohmic-enable plasmac.ohmic-enable  => {}\n'.format(self.ohmicOutPin.get_text()))
             elif not self.ohmicOutPin.get_text():
@@ -1416,12 +1466,10 @@ class configurator:
                 outFile.write('net plasmac:move-up {} => plasmac.move-up\n'.format(self.moveUpPin.get_text()))
             if self.moveDownPin.get_text() and self.mode == 2:
                 outFile.write('net plasmac:move-down {} => plasmac.move-down\n'.format(self.moveDownPin.get_text()))
-            outFile.write('\n# a 1 here allows multiple tools to be used\n' \
-                            '# gcode M3 S1 needs to be changed to:\n' \
-                            '# M3 $0 S1 for the plasma torch\n' \
-                            '# M3 $1 S1 for the scribe\n' \
-                            '# M3 $2 S1 for spotting\n' \
-                            'setp plasmac.multi-tool 0\n')
+            outFile.write('\n#***** MULTIPLE TOOL ENABLE *****\n' \
+                            '# set to 1 to enable a scribe or spotting\n' \
+                            'setp plasmac.multi-tool 0\n\n')
+            outFile.write('#***** SCRIBE CONNECTIONS *****\n')
             if self.scribeArmPin.get_text():
                 outFile.write('net plasmac:scribe-arm plasmac.scribe-arm => {}\n'.format(self.scribeArmPin.get_text()))
             else:
@@ -1433,9 +1481,9 @@ class configurator:
         return True
 
     def write_postgui_hal_file(self):
-        # create a postgui.hal file if not already present
-        if not os.path.exists('{}/postgui.hal'.format(self.configDir)):
-            with open('{}/postgui.hal'.format(self.configDir), 'w') as outFile:
+        # create a postgui.tcl HAL file if not already present
+        if not os.path.exists('{}/postgui.tcl'.format(self.configDir)):
+            with open('{}/postgui.tcl'.format(self.configDir), 'w') as outFile:
                 outFile.write(\
                     '# Keep your post GUI customisations here to prevent them from being overwritten\n'\
                     '# by updates or pncconf/stepconf changes.\n\n'\
@@ -1484,10 +1532,10 @@ class configurator:
             'HALFILE = {0}{1}\n'\
             '# the plasmac component connections\n'\
             'HALFILE = ./plasmac/plasmac.tcl\n'\
-            '# the plasmac machine connections\n'\
+            '# the plasma machine  and custom connections\n'\
             'HALFILE = {0}_connections.hal\n'\
             '# use this for customisation after GUI has loaded\n'\
-            'POSTGUI_HALFILE = postgui.hal\n'\
+            'POSTGUI_HALFILE = postgui.tcl\n'\
             '# required\n'\
             'HALUI = halui\n'\
             '\n'\
@@ -1634,9 +1682,9 @@ class configurator:
         inFile.close()
         return True
 
-    def make_links(self,display, version):
+    def make_links(self,display, versionMajor):
         # remove plasmac.hal from versions 0.087 and older
-        if self.configureType == 'upgrade' and version <= 0.087:
+        if self.configureType == 'upgrade' and versionMajor <= 0.087:
             fNname = '{}/plasmac.hal'.format(self.configDir)
             if os.path.islink(fNname):
                 os.unlink(fNname)
@@ -1651,6 +1699,8 @@ class configurator:
                 os.unlink(fName)
             elif os.path.isfile(fName):
                 os.remove(fName)
+            elif os.path.isdir(fName):
+                shutil.rmtree(fName, ignore_errors=True)
         # if plasmac directory exists remove all existing links
         plasDir = '{}/plasmac'.format(self.configDir)
         if os.path.exists(plasDir):
@@ -1766,7 +1816,7 @@ class configurator:
                         outFile.write(line)
                     else:
                         outFile.write('# {}'.format(line))
-                elif 'arc-ok-in' in line:
+                elif 'plasmac:arc-ok-in' in line:
                     arcOkMissing = False
                     if self.arcOkPin.get_text() and (self.mode == 1 or self.mode == 2):
                         if self.oldArcOkPin != self.arcOkPin.get_text() or self.oldMode != self.mode:
@@ -1950,8 +2000,8 @@ class configurator:
                         self.oldArcVoltPin = (line.split('age-in', 1)[1].strip().split(' ', 1)[0].strip())
                         if not line.strip().startswith('#'):
                             self.arcVoltPin.set_text(self.oldArcVoltPin)
-                    elif 'arc-ok-in' in line:
-                        self.oldArcOkPin = (line.split('ok-in', 1)[1].strip().split(' ', 1)[0].strip())
+                    elif 'plasmac:arc-ok-in' in line:
+                        self.oldArcOkPin = (line.split('plasmac:arc-ok-in', 1)[1].strip().split(' ', 1)[0].strip())
                         if not line.strip().startswith('#'):
                             self.arcOkPin.set_text(self.oldArcOkPin)
                     elif 'ohmic-probe' in line:
@@ -2034,7 +2084,7 @@ class configurator:
         else:
             cmd = '{}/scripts/linuxcnc'.format(self.gitPath)
         self.dialog_ok(\
-            'SUCCESS',\
+            'INSTALLATION',\
             '\nConfiguration is complete.\n\n'\
             'You can run this configuration from a console as follows:\n\n'\
             ' {} {}/{}.ini \n\n'\
@@ -2310,7 +2360,6 @@ class configurator:
                 '\n'
 
 newFileList = [ \
-                'blank.ngc',\
                 'imperial_startup.ngc',\
                 'M190',\
                 'metric_startup.ngc',\

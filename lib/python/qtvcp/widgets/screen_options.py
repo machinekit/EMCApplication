@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 #
 # Qtvcp widget
 # Copyright (c) 2017 Chris Morley
@@ -52,9 +52,25 @@ try:
 except:
     LOG.warning('Sound Player did not load')
 
-# Set the log level for this module
-LOG.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
+# Force the log level for this module
+#LOG.setLevel(logger.DEBUG) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
 
+# only import zmq if needed and present
+def import_ZMQ():
+    try:
+        import zmq
+    except:
+        LOG.warning('Problem importing zmq - Is python-zmg installed?')
+        # nope no messaging for you
+        return False
+    else:
+        import json
+        # since we imported in a function we need to globalize
+        # the libraries so screenoptions can reference them.
+        global zmq
+        global json
+        # imports are good - go ahead and setup messaging
+        return True
 
 class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
     def __init__(self, parent=None):
@@ -96,6 +112,8 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         self.add_calculator_dialog = False
         self.add_machinelog_dialog = False
         self.add_runFromLine_dialog = False
+        self.add_send_zmq = False
+        self.add_receive_zmq = False
 
         self.pref_filename = '~/.qtvcp_screen_preferences'
         self._default_tab_name = ''
@@ -114,6 +132,9 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         self._calculatorDialogColor = QtGui.QColor(0, 0, 0, 150)
         self._machineLogDialogColor = QtGui.QColor(0, 0, 0, 150)
         self._runFromLineDialogColor = QtGui.QColor(0, 0, 0, 150)
+        self._zmq_sub_subscribe_name = ""
+        self._zmq_sub_socket_address = "tcp://127.0.0.1:5690"
+        self._zmq_pub_socket_address = "tcp://127.0.0.1:5690"
 
     # self.QTVCP_INSTANCE_
     # self.HAL_GCOMP_
@@ -238,6 +259,12 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         STATUS.emit('update-machine-log', '', 'DELETE')
         STATUS.emit('update-machine-log', '', 'INITIAL')
         STATUS.connect('tool-info-changed', lambda w, data: self._tool_file_info(data, TOOL.COMMENTS))
+
+        # install remote control
+        if self.add_send_zmq:
+            self.init_zmg_subscribe()
+        if self.add_receive_zmq:
+            self.init_zmq_publish()
 
     # This is called early by qt_makegui.py for access to
     # be able to pass the preference object to ther widgets
@@ -391,7 +418,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
             try:
                 temp = XEmbeddable()
                 temp.embed(cmd)
-            except Exception, e:
+            except Exception as e:
                 LOG.error('Embedded tab loading failed: {} {}'.format(cmd,e))
             else:
                 if twidget is not None:
@@ -401,7 +428,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
                             self.QTVCP_INSTANCE_[loc].setMinimumSize(400,0)
                         layout = QtWidgets.QGridLayout(twidget)
                         layout.addWidget(temp, 0, 0)
-                    except Exception, e:
+                    except Exception as e:
                         LOG.error('Embedded tab adding widget into {} failed.'.format(loc))
                 else:
                     layout = QtWidgets.QGridLayout(tw)
@@ -411,32 +438,28 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         from qtvcp.widgets.dialog_widget import ToolDialog
         w = self.QTVCP_INSTANCE_
         w.toolDialog_ = ToolDialog()
-        w.toolDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.toolDialog_, w, w.PATHS, self.PREFS_)
+        w.toolDialog_.hal_init(HAL_NAME='')
         w.toolDialog_.overlay_color = self._toolDialogColor
 
     def init_message_dialog(self):
         from qtvcp.widgets.dialog_widget import LcncDialog
         w = self.QTVCP_INSTANCE_
         w.messageDialog_ = LcncDialog()
-        w.messageDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.messageDialog_, w, w.PATHS, self.PREFS_)
+        w.messageDialog_.hal_init(HAL_NAME='')
         w.messageDialog_.overlay_color = self._messageDialogColor
 
     def init_close_dialog(self):
         from qtvcp.widgets.dialog_widget import CloseDialog
         w = self.QTVCP_INSTANCE_
         w.closeDialog_ = CloseDialog()
-        w.closeDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.closeDialog_, w, w.PATHS, self.PREFS_)
+        w.closeDialog_.hal_init(HAL_NAME='')
         w.closeDialog_.overlay_color = self._messageDialogColor
 
     def init_entry_dialog(self):
         from qtvcp.widgets.dialog_widget import EntryDialog
         w = self.QTVCP_INSTANCE_
         w.entryDialog_ = EntryDialog()
-        w.entryDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.entryDialog_, w, w.PATHS, self.PREFS_)
+        w.entryDialog_.hal_init(HAL_NAME='')
         w.entryDialog_.soft_keyboard_option = self._entryDialogSoftkey
         w.entryDialog_.overlay_color = self._entryDialogColor
 
@@ -445,16 +468,14 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         w = self.QTVCP_INSTANCE_
         w.fileDialog_ = FileDialog()
         w.fileDialog_.setObjectName('fileDialog_')
-        w.fileDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.fileDialog_, w, w.PATHS, self.PREFS_)
+        w.fileDialog_.hal_init(HAL_NAME='')
         w.fileDialog_.overlay_color = self._fileDialogColor
 
     def init_focus_overlay(self):
         from qtvcp.widgets.overlay_widget import FocusOverlay
         w = self.QTVCP_INSTANCE_
         w.focusOverlay_ = FocusOverlay(w)
-        w.focusOverlay_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.focusOverlay_, w, w.PATHS, self.PREFS_)
+        w.focusOverlay_.hal_init(HAL_NAME='')
 
     def init_versaprobe_dialog(self):
         from qtvcp.widgets.dialog_widget import VersaProbeDialog
@@ -462,8 +483,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         w.versaProbeDialog_ = VersaProbeDialog()
         w.versaProbeDialog_.setObjectName('versaProbeDialog_')
         w.registerHalWidget(w.versaProbeDialog_)
-        w.versaProbeDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.versaProbeDialog_, w, w.PATHS, self.PREFS_)
+        w.versaProbeDialog_.hal_init(HAL_NAME='')
         w.versaProbeDialog_.overlay_color = self._versaProbeDialogColor
 
     def init_macrotab_dialog(self):
@@ -471,57 +491,104 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         w = self.QTVCP_INSTANCE_
         w.macroTabDialog_ = MacroTabDialog()
         w.macroTabDialog_.setObjectName('macroTabDialog_')
-        w.macroTabDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.macroTabDialog_, w, w.PATHS, self.PREFS_)
+        w.macroTabDialog_.hal_init(HAL_NAME='')
         w.macroTabDialog_.overlay_color = self._macroTabDialogColor
 
     def init_camview_dialog(self):
         from qtvcp.widgets.dialog_widget import CamViewDialog
         w = self.QTVCP_INSTANCE_
         w.camViewDialog_ = CamViewDialog()
-        w.camViewDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.camViewDialog_, w, w.PATHS, self.PREFS_)
+        w.camViewDialog_.hal_init(HAL_NAME='')
         w.camViewDialog_.overlay_color = self._camViewDialogColor
 
     def init_tooloffset_dialog(self):
         from qtvcp.widgets.dialog_widget import ToolOffsetDialog
         w = self.QTVCP_INSTANCE_
         w.toolOffsetDialog_ = ToolOffsetDialog()
-        w.toolOffsetDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.toolOffsetDialog_, w, w.PATHS, self.PREFS_)
+        w.toolOffsetDialog_.hal_init(HAL_NAME='')
         w.toolOffsetDialog_.overlay_color = self._toolOffsetDialogColor
 
     def init_originoffset_dialog(self):
         from qtvcp.widgets.dialog_widget import OriginOffsetDialog
         w = self.QTVCP_INSTANCE_
         w.originOffsetDialog_ = OriginOffsetDialog()
-        w.originOffsetDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.originOffsetDialog_, w, w.PATHS, self.PREFS_)
+        w.originOffsetDialog_.hal_init(HAL_NAME='')
         w.originOffsetDialog_.overlay_color = self._originOffsetDialogColor
 
     def init_calculator_dialog(self):
         from qtvcp.widgets.dialog_widget import CalculatorDialog
         w = self.QTVCP_INSTANCE_
         w.calculatorDialog_ = CalculatorDialog()
-        w.calculatorDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.calculatorDialog_, w, w.PATHS, self.PREFS_)
+        w.calculatorDialog_.hal_init(HAL_NAME='')
         w.calculatorDialog_.overlay_color = self._calculatorDialogColor
 
     def init_machinelog_dialog(self):
         from qtvcp.widgets.dialog_widget import MachineLogDialog
         w = self.QTVCP_INSTANCE_
         w.machineLogDialog_ = MachineLogDialog()
-        w.machineLogDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.machineLogDialog_, w, w.PATHS, self.PREFS_)
+        w.machineLogDialog_.hal_init(HAL_NAME='')
         w.machineLogDialog_.overlay_color = self._machineLogDialogColor
 
     def init_runfromline_dialog(self):
         from qtvcp.widgets.dialog_widget import RunFromLineDialog
         w = self.QTVCP_INSTANCE_
         w.runFromLineDialog_ = RunFromLineDialog()
-        w.runFromLineDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.runFromLineDialog_, w, w.PATHS, self.PREFS_)
+        w.runFromLineDialog_.hal_init(HAL_NAME='')
         w.runFromLineDialog_.overlay_color = self._runFromLineDialogColor
+
+    def init_zmg_subscribe(self):
+        if import_ZMQ():
+            self._zmq_sub_context = zmq.Context()
+            self._zmq_sub_sock = self._zmq_sub_context.socket(zmq.SUB)
+            self._zmq_sub_sock.connect(self._zmq_sub_socket_address)
+            self._zmq_sub_sock.setsockopt(zmq.SUBSCRIBE, self._zmq_sub_subscribe_name)
+
+            self.read_noti = QtCore.QSocketNotifier(self._zmq_sub_sock.getsockopt(zmq.FD),
+                                                 QtCore.QSocketNotifier.Read, None)
+            self.read_noti.activated.connect(self.on_read_msg)
+
+    def on_read_msg(self):
+        self.read_noti.setEnabled(False)
+        if self._zmq_sub_sock.getsockopt(zmq.EVENTS) & zmq.POLLIN:
+            while self._zmq_sub_sock.getsockopt(zmq.EVENTS) & zmq.POLLIN:
+                # get raw message
+                topic, data = self._zmq_sub_sock.recv_multipart()
+                # convert from json object to python object
+                y = json.loads(data)
+                # get the function name
+                function = y.get('FUNCTION')
+                # get the arguments
+                arguments = y.get('ARGS')
+                LOG.debug('{} Sent ZMQ Message:{} {}'.format(topic,function,arguments))
+
+                # call handler function with arguments
+                try:
+                     self.QTVCP_INSTANCE_[function](*arguments)
+                except Exception as e:
+                    LOG.error('zmq message parcing error: {}'.format(e))
+        elif self._zmq_sub_sock.getsockopt(zmq.EVENTS) & zmq.POLLOUT:
+            print("[Socket] zmq.POLLOUT")
+        elif self._zmq_sub_sock.getsockopt(zmq.EVENTS) & zmq.POLLERR:
+            print("[Socket] zmq.POLLERR")
+        self.read_noti.setEnabled(True)
+
+    def init_zmq_publish(self):
+        if import_ZMQ():
+            self._zmq_pub_context = zmq.Context()
+            self._zmq_pub_socket = self._zmq_pub_context.socket(zmq.PUB)
+            self._zmq_pub_socket.bind(self._zmq_pub_socket_address)
+
+    def zmq_write_message(self, args,topic = 'QtVCP'):
+        if self.add_send_zmq:
+            try:
+                message = json.dumps(args)
+                LOG.debug('Sending ZMQ Message:{} {}'.format(topic,message))
+                self._zmq_pub_socket.send_multipart(
+                    [topic, bytes((message).encode('utf-8'))])
+            except Exception as e:
+                LOG.error('zmq message sending error: {}'.format(e))
+        else:
+            LOG.info('ZMQ Message not enabled. message:{} {}'.format(topic,args))
 
     ########################################################################
     # This is how designer can interact with our widget properties.
@@ -578,6 +645,16 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
     def resetState(self):
         self._close_color = QtGui.QColor(100, 0, 0, 150)
 
+    def set_send_zmg(self, data):
+        self.add_send_zmq = data
+    def get_send_zmg(self):
+        return self.add_send_zmq
+
+    def set_receive_zmg(self, data):
+        self.add_receive_zmq = data
+    def get_receive_zmg(self):
+        return self.add_receive_zmq
+
     # designer will show these properties in this order:
     notify_option = QtCore.pyqtProperty(bool, get_notify, set_notify, reset_notify)
 
@@ -590,6 +667,8 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
     use_pref_file_option = QtCore.pyqtProperty(bool, get_use_pref_file, set_use_pref_file, reset_use_pref_file)
     pref_filename_string = QtCore.pyqtProperty(str, get_pref_filename, set_pref_filename, reset_pref_filename)
 
+    use_send_zmq_option = QtCore.pyqtProperty(bool, get_send_zmg, set_send_zmg)
+    use_receive_zmq_option = QtCore.pyqtProperty(bool, get_receive_zmg, set_receive_zmg)
     # Embeddable program info ##########################
 
     def set_embed_prgm(self, data):

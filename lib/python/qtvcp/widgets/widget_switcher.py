@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 # qtvcp
 #
 # Copyright (c) 2018  Chris Morley <chrisinnanaimo@hotmail.com>
@@ -70,7 +70,7 @@ class WidgetSwitcher(QStackedWidget, _HalWidgetBase):
             if i.indexOf(widget) > -1:
                 #print i.layout(), widget.objectName(), i.objectName()
                 return i.layout(), i.indexOf(widget)
-        print widget.parent()
+        print(widget.parent())
         LOG.error('No layout found for {}'.format(widget))
         return widget.parent(),None
 
@@ -86,8 +86,12 @@ class WidgetSwitcher(QStackedWidget, _HalWidgetBase):
             num = n+1
             if num == number:
                 #print 'switch to ',obj[0],' tp ',self.widget(num).layout().objectName()
-                #print num, self.widget(num).objectName()
-                self.widget(num).layout().addWidget(obj[0])
+                #print num, self.widget(num).objectName(),self.widget(num).layout()
+                if self.widget(num).layout() is None:
+                    LOG.error('''Cannot move widget '{}' to widget '{}', No layout found in '{}'
+'''.format( obj[0].objectName(),self.widget(num).objectName(), self.widget(num).objectName()))
+                else:
+                    self.widget(num).layout().addWidget(obj[0])
                 self.setCurrentIndex(num)
                 self._current_object = obj
                 self._current_number = num

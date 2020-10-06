@@ -399,6 +399,8 @@ class HandlerClass:
                     event.accept()
                     return True
 
+        if event.isAutoRepeat():return True
+
         # ok if we got here then try keybindings
         try:
             return KEYBIND.call(self,event,is_pressed,shift,cntrl)
@@ -624,6 +626,8 @@ standard widgets to control linuxcnc. +
 In the Designer editor you would create user function slots and connect +
 them to widgets using signals. +
 In the handler file you would create the slot's functions defined in Designer. +
+
+[[cha:designer-slots]]
 
 === Using Designer to add slots
 When you have loaded your screen into designer add a plain PushButton to the screen. +
