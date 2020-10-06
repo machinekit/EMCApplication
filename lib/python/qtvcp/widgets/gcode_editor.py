@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 #    Gcode display / edit widget for QT_VCP
 #    Copyright 2016 Chris Morley
@@ -35,11 +35,6 @@ from PyQt5.QtGui import QFont, QFontMetrics, QColor, QIcon
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QAction,\
          QVBoxLayout,QToolBar,QGroupBox,QLineEdit, QHBoxLayout,QMessageBox, \
             QFileDialog, QFrame, QLabel
-try:
-    from PyQt5.Qsci import QsciScintilla, QsciLexerCustom, QsciLexerPython
-except ImportError as e:
-    LOG.critical("Can't import QsciScintilla - is package python-pyqt5.qsci installed?", exc_info=e)
-    sys.exit(1)
 
 from qtvcp.widgets.widget_baseclass import _HalWidgetBase
 from qtvcp.core import Status, Info, Action
@@ -57,6 +52,12 @@ LOG = logger.getLogger(__name__)
 # Set the log level for this module
 # LOG.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
 
+# load this after Logging set up so we get a nice dialog.
+try:
+    from PyQt5.Qsci import QsciScintilla, QsciLexerCustom, QsciLexerPython
+except ImportError as e:
+    LOG.critical("Can't import QsciScintilla - is package python3-pyqt5.qsci installed?", exc_info=e)
+    sys.exit(1)
 
 ##############################################################
 # Simple custom lexer for Gcode
@@ -71,7 +72,7 @@ class GcodeLexer(QsciLexerCustom):
             3: 'Assignment',
             4: 'Value',
             }
-        for key, value in self._styles.iteritems():
+        for key, value in self._styles.items():
             setattr(self, value, key)
         font = QFont()
         font.setFamily('Courier')
@@ -129,7 +130,7 @@ class GcodeLexer(QsciLexerCustom):
                 editor.SendScintilla(
                     editor.SCI_GETTEXTRANGE, start, end, source)
             else:
-                source = unicode(editor.text()).encode('utf-8')[start:end]
+                source = str(editor.text())[start:end]
         if not source:
             return
 
@@ -145,45 +146,46 @@ class GcodeLexer(QsciLexerCustom):
 
         set_style = self.setStyling
         self.startStyling(start, 0x1f)
-
-        # scintilla always asks to style whole lines
-        for line in source.splitlines(True):
-            #print line
-            length = len(line)
-            graymode = False
-            msg = ('msg' in line.lower() or 'debug' in line.lower())
-            for char in str(line):
-                #print char
-                if char == ('('):
-                    graymode = True
-                    set_style(1, self.Comment)
-                    continue
-                elif char == (')'):
-                    graymode = False
-                    set_style(1, self.Comment)
-                    continue
-                elif graymode:
-                    if (msg and char.lower() in ('m', 's', 'g', ',', 'd', 'e', 'b', 'u')):
-                        set_style(1, self.Assignment)
-                        if char == ',': msg = False
-                    else:
+        try:
+            # scintilla always asks to style whole lines
+            for line in source.splitlines(True):
+                #print (line.decode('utf-8'))
+                graymode = False
+                line = line.decode('utf-8')
+                msg = ('msg' in line.lower() or 'debug' in line.lower())
+                for char in line:
+                    #print (char,msg)
+                    if char == ('('):
+                        graymode = True
                         set_style(1, self.Comment)
-                    continue
-                elif char in ('%', '<', '>', '#', '='):
-                    state = self.Assignment
-                elif char in ('[', ']'):
-                    state = self.Value
-                elif char.isalpha():
-                    state = self.Key
-                elif char.isdigit():
-                    state = self.Default
-                else:
-                    state = self.Default
-                set_style(1, state)
+                        continue
+                    elif char == (')'):
+                        graymode = False
+                        set_style(1, self.Comment)
+                        continue
+                    elif graymode:
+                        if (msg and char.lower() in ('m', 's', 'g', ',', 'd', 'e', 'b', 'u')):
+                            set_style(1, self.Assignment)
+                            if char == ',': msg = False
+                        else:
+                            set_style(1, self.Comment)
+                        continue
+                    elif char in ('%', '<', '>', '#', '='):
+                        state = self.Assignment
+                    elif char in ('[', ']'):
+                        state = self.Value
+                    elif char.isalpha():
+                        state = self.Key
+                    elif char.isdigit():
+                        state = self.Default
+                    else:
+                        state = self.Default
+                    set_style(1, state)
 
-            # folding implementation goes here
-            index += 1
-
+                # folding implementation goes here
+                index += 1
+        except Exception as e:
+            print(e)
 
 ##########################################################
 # Base editor class
@@ -637,7 +639,7 @@ class GcodeEditor(QWidget, _HalWidgetBase):
     def case(self):
         self.isCaseSensitive -=1
         self.isCaseSensitive *=-1
-        print self.isCaseSensitive
+        print(self.isCaseSensitive)
 
     def exitCall(self):
         self.exit()
@@ -660,8 +662,8 @@ class GcodeEditor(QWidget, _HalWidgetBase):
         self.editor.set_gcode_lexer()
 
     def nextCall(self):
-        self.next()
-    def next(self):
+        next(self)
+    def __next__(self):
         self.editor.search(str(self.searchText.text()),False)
         self.editor.search_Next()
 
@@ -716,6 +718,7 @@ class GcodeEditor(QWidget, _HalWidgetBase):
         # name the top and bottom frames so it's easier to style
         self.bottomMenu.setObjectName('%sBottomButtonFrame'% self.objectName())
         self.topMenu.setObjectName('%sTopButtonFrame'% self.objectName())
+        self.editor.setObjectName('{}_display'.format( self.objectName()))
 
     def editMode(self):
         self.topMenu.show()

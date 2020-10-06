@@ -1,4 +1,5 @@
-#############################################################################
+#!/usr/bin/python3
+############################################################################
 ##
 ## Copyright (C) 2010 Hans-Peter Jansen <hpj@urpla.net>.
 ## Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
@@ -65,7 +66,7 @@ class StyleSheetEditor(QDialog):
             LOG.critical(e)
         self.styleSheetCombo.setFixedWidth(200)
 
-        self.setWindowTitle('Style SHeet Editor Dialog');
+        self.setWindowTitle('Style Sheet Editor Dialog');
         self.parent = parent
         if PATH:
             self.setPath()
@@ -111,7 +112,7 @@ class StyleSheetEditor(QDialog):
                 item.setData(os.path.join(qssname, i), role = QtCore.Qt.UserRole + 1)
                 model.appendRow(item)
         except Exception as e:
-            print e
+            print(e)
 
         # check for qss in the users's config folder 
         localqss = PATH.CONFIGPATH
@@ -122,7 +123,7 @@ class StyleSheetEditor(QDialog):
                 item.setData(os.path.join(localqss, i), role = QtCore.Qt.UserRole + 1)
                 model.appendRow(item)
         except Exception as e:
-            print e
+            print(e)
 
     def selectionChanged(self,i):
         path = self.styleSheetCombo.itemData(i,role = QtCore.Qt.UserRole + 1)
@@ -136,6 +137,7 @@ class StyleSheetEditor(QDialog):
 
     @pyqtSlot()
     def on_applyButton_clicked(self):
+        self.parent.setStyleSheet("")
         if self.tabWidget.currentIndex() == 0:
             self.parent.setStyleSheet(self.styleTextView.toPlainText())
             if WIDGETS.PREFS_:
@@ -223,7 +225,7 @@ class StyleSheetEditor(QDialog):
             styleSheet = file.readAll()
             try:
                 # Python v2.
-                styleSheet = unicode(styleSheet, encoding='utf8')
+                styleSheet = str(styleSheet)
             except NameError:
                 # Python v3.
                 styleSheet = str(styleSheet, encoding='utf8')

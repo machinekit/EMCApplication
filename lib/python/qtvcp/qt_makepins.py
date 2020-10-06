@@ -25,7 +25,7 @@ from PyQt5.QtCore import QObject
 from PyQt5.QtWidgets import QDesktopWidget
 
 # Set up logging
-import logger
+from . import logger
 LOG = logger.getLogger(__name__)
 # Set the log level for this module
 LOG.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -69,7 +69,7 @@ class QTPanel():
                 self.window.registerHalWidget(widget)
                 idname = widget.objectName()
                 LOG.debug('HAL-ified instance found: {}'.format(idname))
-                widget.hal_init(halcomp, str(idname), widget, window, window.PATHS, self.window['PREFS_'])
+                widget.hal_init()
 
     # Search all hal-ifed widgets for closing clean up functions and call them
     # used for such things as preference recording current settings
@@ -132,8 +132,8 @@ class QTPanel():
             go( x,y,w,h)
 
 if __name__ == "__main__":
-    print "qtvcp_make_pins cannot be run on its own"
-    print "It must be called by qtscreen or a python program"
-    print "that loads and displays the QT panel and creates a HAL component"
+    print("qtvcp_make_pins cannot be run on its own")
+    print("It must be called by qtscreen or a python program")
+    print("that loads and displays the QT panel and creates a HAL component")
 
 # vim: sts=4 sw=4 et

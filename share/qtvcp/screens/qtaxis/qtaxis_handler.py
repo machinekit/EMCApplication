@@ -183,6 +183,8 @@ class HandlerClass:
                     event.accept()
                     return True
 
+        if event.isAutoRepeat():return True
+
         # ok if we got here then try keybindings function calls
         # KEYBINDING will call functions from handler file as
         # registered by KEYBIND.add_call(KEY,FUNCTION) above
@@ -392,7 +394,7 @@ class HandlerClass:
     (_("Ctrl-Space"), _("Clear notifications")),
     (_("Alt-F, M, V"), _("Open a Menu")),
 ]
-        help =  zip(help1,help2)
+        help =  list(zip(help1,help2))
         msg = QtWidgets.QDialog()
         msg.setWindowTitle("Quick Reference")
         button = QtWidgets.QPushButton("Ok")
@@ -446,8 +448,7 @@ class HandlerClass:
         self.w.led = LED()
         self.w.led.setProperty('is_spindle_at_speed_status',True)
         self.w.led.setProperty('color',QColor(0,255,0,255))
-        self.w.led.hal_init(self.hal, 'spindle_is_at_speed',
-             self.w.led, self.w, self.PATHS, self.w.PREFS_)
+        self.w.led.hal_init(HAL_NAME = 'spindle_is_at_speed')
 
         # make a spindle speed bar
         self.w.rpm_bar = QtWidgets.QProgressBar()
@@ -470,7 +471,7 @@ class HandlerClass:
         self.w.tool_stat = TOOLSTAT()
         self.w.tool_stat.setProperty('tool_number_status', True)
         self.w.tool_stat.setProperty('textTemplate', 'Tool %d')
-        self.w.tool_stat._hal_init()
+        self.w.tool_stat.hal_init()
         self.w.tool_stat.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.w.tool_stat.setFixedWidth(60)
         self.w.leftTab.setCornerWidget(self.w.tool_stat)

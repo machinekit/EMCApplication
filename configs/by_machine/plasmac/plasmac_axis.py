@@ -284,7 +284,7 @@ else:
 w('DynamicHelp::add',fjogf + '.zerohome.zero','-text','Touch off selected axis\nto workpiece [Home]')
 
 # new torch frame
-w('labelframe',ftorch,'-text','Torch:','-relief','flat')
+w('labelframe',ftorch,'-text','Torch Pulse:','-relief','flat')
 w('Button',ftorch + '.torch-button','-text','PULSE','-takefocus','0','-width','3')
 w('bind',ftorch + '.torch-button','<Button-1>','torch_pulse 1')
 w('bind',ftorch + '.torch-button','<ButtonRelease-1>','torch_pulse 0')
@@ -328,23 +328,31 @@ w('DynamicHelp::add',foverride + '.reset','-text','Set height override to 0')
 w('DynamicHelp::add',foverride + '.height-override','-text','Voltage value of height override')
 
 # new paused motion frame
-w('labelframe',fpausedmotion,'-text','Paused Motion Speed: %','-relief','flat')
+w('labelframe',fpausedmotion,'-text','Paused Motion Speed:','-relief','flat')
 w('Button',fpausedmotion + '.reverse','-text','Rev','-takefocus','0','-width','3')
 w('bind',fpausedmotion + '.reverse','<Button-1>','paused_motion -1')
 w('bind',fpausedmotion + '.reverse','<ButtonRelease-1>','paused_motion 0')
-w('scale',fpausedmotion + '.paused-motion-speed','-takefocus','0','-orient','horizontal')
+w('frame',fpausedmotion + '.display','-relief','flat')
+w('frame',fpausedmotion + '.display.top','-relief','flat')
+w('label',fpausedmotion + '.display.top.value','-textvariable','pmSpeed','-width','3','-anchor','e')
+w('label',fpausedmotion + '.display.top.sign','-text','%','-anchor','e')
+w('scale',fpausedmotion + '.display.paused-motion-speed','-takefocus','0','-orient','horizontal','-variable','pmSpeed','-showvalue','0')
 w('Button',fpausedmotion + '.forward','-text','Fwd','-takefocus','0','-width','3')
 w('bind',fpausedmotion + '.forward','<Button-1>','paused_motion 1')
 w('bind',fpausedmotion + '.forward','<ButtonRelease-1>','paused_motion 0')
 # populate the paused motion frame
 w('pack',fpausedmotion + '.reverse','-side','left','-fill','y')
-w('pack',fpausedmotion + '.paused-motion-speed','-side','left','-fill','x','-expand','1')
+w('pack',fpausedmotion + '.display.top.value','-side','left','-fill','y')
+w('pack',fpausedmotion + '.display.top.sign','-side','left','-fill','y')
+w('pack',fpausedmotion + '.display.top','-side','top','-fill','y')
+w('pack',fpausedmotion + '.display.paused-motion-speed','-side','top','-fill','y')
+w('pack',fpausedmotion + '.display','-side','left','-fill','x','-expand','1')
 w('pack',fpausedmotion + '.forward','-side','right','-fill','y')
 if orientation == 'portrait':
     w(fpausedmotion,'configure','-relief','raised','-bd','1')
 w('DynamicHelp::add',fpausedmotion + '.reverse','-text','Move while paused\nin reverse direction')
 w('DynamicHelp::add',fpausedmotion + '.forward','-text','Move while paused\nin foward direction')
-w('DynamicHelp::add',fpausedmotion + '.paused-motion-speed','-text','Paused motion speed (% of feed rate)')
+w('DynamicHelp::add',fpausedmotion + '.display.paused-motion-speed','-text','Paused motion speed (% of feed rate)')
 
 # hide bottom pane until modified
 w('pack','forget','.pane.bottom.t.text')
@@ -629,7 +637,7 @@ def torch_pulse(value):
     hal.set_p('plasmac.torch-pulse-start',value)
 
 def paused_motion(direction):
-    speed = float(w(fpausedmotion + '.paused-motion-speed','get')) * 0.01
+    speed = float(w(fpausedmotion + '.display.paused-motion-speed','get')) * 0.01
     hal.set_p('plasmac.paused-motion-speed','%f' % (speed * int(direction)))
 
 def height_lower():
@@ -701,21 +709,32 @@ def user_button_pressed(button,commands):
        not commands: return
     from subprocess import Popen,PIPE
     if 'change-consumables' in commands.lower() and not hal.get_value('plasmac.breakaway'):
+        consumable_change_setup(ccParm)
         if hal.get_value('axis.x.eoffset-counts') or hal.get_value('axis.y.eoffset-counts'):
             hal.set_p('plasmac.consumable-change', '0')
             hal.set_p('plasmac.x-offset', '0')
             hal.set_p('plasmac.y-offset', '0')
         else:
             global ccF, ccX, ccY
-            hal.set_p('plasmac.xy-feed-rate', str(int(ccF)))
-            if ccX or ccX == 0:
-                hal.set_p('plasmac.x-offset', '{:.0f}'.format((ccX - s.position[0]) / hal.get_value('plasmac.offset-scale')))
+            if ccF == 'None' or ccF < 1:
+                print('invalid consumable change feed rate')
+                return
             else:
-                hal.set_p('plasmac.x-offset', '0')
-            if ccY or ccY == 0:
-                hal.set_p('plasmac.y-offset', '{:.0f}'.format((ccY - s.position[1]) / hal.get_value('plasmac.offset-scale')))
-            else:
-                hal.set_p('plasmac.y-offset', '0')
+                hal.set_p('plasmac.xy-feed-rate', str(float(ccF)))
+            if ccX == 'None':
+                ccX = s.position[0]
+            if ccX < round(float(inifile.find('AXIS_X', 'MIN_LIMIT')), 6) + (10 * hal.get_value('halui.machine.units-per-mm')):
+                ccX = round(float(inifile.find('AXIS_X', 'MIN_LIMIT')), 6) + (10 * hal.get_value('halui.machine.units-per-mm'))
+            elif ccX > round(float(inifile.find('AXIS_X', 'MAX_LIMIT')), 6) - (10 * hal.get_value('halui.machine.units-per-mm')):
+                ccX = round(float(inifile.find('AXIS_X', 'MAX_LIMIT')), 6) - (10 * hal.get_value('halui.machine.units-per-mm'))
+            if ccY == 'None':
+                ccY = s.position[1]
+            if ccY < round(float(inifile.find('AXIS_Y', 'MIN_LIMIT')), 6) + (10 * hal.get_value('halui.machine.units-per-mm')):
+                ccY = round(float(inifile.find('AXIS_Y', 'MIN_LIMIT')), 6) + (10 * hal.get_value('halui.machine.units-per-mm'))
+            elif ccY > round(float(inifile.find('AXIS_Y', 'MAX_LIMIT')), 6) - (10 * hal.get_value('halui.machine.units-per-mm')):
+                ccY = round(float(inifile.find('AXIS_Y', 'MAX_LIMIT')), 6) - (10 * hal.get_value('halui.machine.units-per-mm'))
+            hal.set_p('plasmac.x-offset', '{:.0f}'.format((ccX - s.position[0]) / hal.get_value('plasmac.offset-scale')))
+            hal.set_p('plasmac.y-offset', '{:.0f}'.format((ccY - s.position[1]) / hal.get_value('plasmac.offset-scale')))
             hal.set_p('plasmac.consumable-change', '1')
     elif 'ohmic-test' in commands.lower():
         hal.set_p('plasmac.ohmic-test','1')
@@ -841,7 +860,9 @@ def user_live_update():
     # set buttons state
     for n in range(1,6):
         if 'change-consumables' in iniButtonCode[n]:
-            if hal.get_value('halui.program.is-paused'):
+            if hal.get_value('halui.program.is-paused') and \
+               hal.get_value('plasmac.stop-type-out') > 1 and not \
+               hal.get_value('plasmac.cut-recovering'):
                 w(fbuttons + '.button' + str(n),'configure','-state','normal')
             else:
                 w(fbuttons + '.button' + str(n),'configure','-state','disabled')
@@ -859,7 +880,9 @@ def user_live_update():
         w(ftorch + '.torch-button','configure','-state','normal')
     else:
         w(ftorch + '.torch-button','configure','-state','disabled')
-    if hal.get_value('halui.program.is-paused')  or hal.get_value('plasmac.paused-motion-speed'):
+    if (hal.get_value('halui.program.is-paused') or \
+       hal.get_value('plasmac.paused-motion-speed')) and \
+       not hal.get_value('plasmac.cut-recovery'):
         if orientation == 'portrait':
             w(fpausedmotion + '.reverse','configure','-state','normal')
             w(fpausedmotion + '.forward','configure','-state','normal')
@@ -909,6 +932,16 @@ def user_live_update():
             hal.set_p('plasmac_run.preview-tab', '0')
     except:
         pass
+    # allows user to set a HAL pin to initiate the sequence of reloading the program, clearing the live plot, and rezooming the axis
+    if hal.get_value('axisui.refresh') == 1:
+        hal.set_p('axisui.refresh', '2')
+        commands.reload_file()
+    elif hal.get_value('axisui.refresh') == 2:
+        hal.set_p('axisui.refresh', '3')
+        commands.clear_live_plot()
+    elif hal.get_value('axisui.refresh') == 3:
+        hal.set_p('axisui.refresh', '0')
+        commands.set_view_z()
 
 def user_hal_pins():
     # create new hal pins
@@ -924,6 +957,7 @@ def user_hal_pins():
     comp.newpin('led-down', hal.HAL_BIT, hal.HAL_IN)
     comp.newpin('led-corner-locked', hal.HAL_BIT, hal.HAL_IN)
     comp.newpin('led-kerf-locked', hal.HAL_BIT, hal.HAL_IN)
+    comp.newpin('refresh', hal.HAL_S32, hal.HAL_IN)
     comp.ready()
     # create new signals and connect pins
     hal_data = [[0,'plasmac:arc-voltage-out','plasmac.arc-voltage-out','axisui.arc-voltage'],\
@@ -952,11 +986,11 @@ def user_hal_pins():
 
 def configure_widgets():
     w(ftorch + '.torch-pulse-time','configure','-from','0','-to','3','-resolution','0.1')
-    w(fpausedmotion + '.paused-motion-speed','configure','-from','1','-to','100','-resolution','1')
+    w(fpausedmotion + '.display.paused-motion-speed','configure','-from','1','-to','100','-resolution','1')
 
 def consumable_change_setup(ccParm):
     global ccF, ccX, ccY
-    ccX = ccY = ccF = ''
+    ccX = ccY = ccF = 'None'
     X = Y = F = ''
     ccAxis = [X, Y, F]
     ccName = ['x', 'y', 'f']
@@ -982,20 +1016,6 @@ def consumable_change_setup(ccParm):
                 ccY = float(ccAxis[loop])
             elif ccName[loop] == 'f' and ccAxis[loop]:
                 ccF = float(ccAxis[loop])
-    if ccX and \
-       (ccX < round(float(inifile.find('AXIS_X', 'MIN_LIMIT')), 6) or \
-       ccX > round(float(inifile.find('AXIS_X', 'MAX_LIMIT')), 6)):
-        print('x out of bounds for consumable change\n')
-        raise SystemExit()
-    if ccY and \
-       (ccY < round(float(inifile.find('AXIS_Y', 'MIN_LIMIT')), 6) or \
-       ccY > round(float(inifile.find('AXIS_Y', 'MAX_LIMIT')), 6)):
-        print('y out of bounds for consumable change\n')
-        raise SystemExit()
-    if not ccF:
-        print('invalid consumable change feed rate\n')
-        raise SystemExit()
-
 
 ################################################################################
 # setup
@@ -1014,14 +1034,9 @@ w(foverride + '.height-override','configure','-text','%0.1fV' % (torch_height))
 for button in range(1,6):
     if 'change-consumables' in inifile.find('PLASMAC', 'BUTTON_' + str(button) + '_CODE'):
         ccParm = inifile.find('PLASMAC','BUTTON_' + str(button) + '_CODE').replace('change-consumables','').replace(' ','').lower() or None
-        if ccParm:
-            consumable_change_setup(ccParm)
-        else:
-            print('consumable change parameters required\n')
-        break
 wScales = [\
     ftorch + '.torch-pulse-time',\
-    fpausedmotion + '.paused-motion-speed',\
+    fpausedmotion + '.display.paused-motion-speed',\
     ]
 wScalesHal = [\
     ftorch + '.torch-pulse-time',\
@@ -1040,7 +1055,7 @@ wLeds = [\
     fmonitor + '.led-kerf-locked',\
     ]
 configure_widgets()
-w(fpausedmotion + '.paused-motion-speed','set',inifile.find('PLASMAC','PAUSED_MOTION_SPEED') or '50')
+w(fpausedmotion + '.display.paused-motion-speed','set',inifile.find('PLASMAC','PAUSED_MOTION_SPEED') or '50')
 w(ftorch + '.torch-pulse-time','set',inifile.find('PLASMAC','TORCH_PULSE_TIME') or '1')
 hal.set_p('plasmac.torch-pulse-time',inifile.find('PLASMAC','TORCH_PULSE_TIME') or '1')
 

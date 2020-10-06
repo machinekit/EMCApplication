@@ -1,12 +1,10 @@
+#!/usr/bin/env python
 import os
 import linuxcnc
-import hal, hal_glib
+import hal
 import time
 from PyQt5 import QtCore, QtWidgets, QtGui
-try:
-    from PyQt5.QtWebKitWidgets import QWebView
-except ImportError:
-    raise Exception("Qtvcp error with qtdragon - is package python-pyqt5.qtwebkit installed?")
+
 from qtvcp.widgets.gcode_editor import GcodeEditor as GCODE
 from qtvcp.widgets.mdi_line import MDILine as MDI_WIDGET
 from qtvcp.widgets.tool_offsetview import ToolOffsetView as TOOL_TABLE
@@ -65,7 +63,7 @@ class HandlerClass:
         self.lineedit_list = ["work_height", "touch_height", "sensor_height",
                               "laser_x", "laser_y", "sensor_x", "sensor_y",
                               "search_vel", "probe_vel", "max_probe", "eoffset_count"]
-        self.onoff_list = ["frame_program", "frame_dro"]
+        self.onoff_list = ["frame_program", "frame_tool", "frame_dro", "frame_override", "frame_status"]
         self.auto_list = ["chk_eoffsets", "cmb_gcode_history"]
         self.axis_a_list = ["label_axis_a", "dro_axis_a", "action_zero_a", "axistoolbutton_a",
                             "action_home_a", "widget_jog_angular", "widget_increments_angular",
@@ -120,6 +118,8 @@ class HandlerClass:
         self.w.page_buttonGroup.buttonClicked.connect(self.main_tab_changed)
         self.w.filemanager.onUserClicked()    
         self.w.filemanager_usb.onMediaClicked()
+        self.w.filemanager.list.setAlternatingRowColors(False)
+        self.w.filemanager_usb.list.setAlternatingRowColors(False)
 
     # hide widgets for A axis if not present
         if "A" not in INFO.AVAILABLE_AXES:
@@ -136,19 +136,20 @@ class HandlerClass:
     def init_pins(self):
         # spindle control pins
         pin = self.h.newpin("spindle_amps", hal.HAL_FLOAT, hal.HAL_IN)
-        hal_glib.GPin(pin).connect("value_changed", self.spindle_pwr_changed)
+        pin.value_changed.connect(self.spindle_pwr_changed)
+
         pin = self.h.newpin("spindle_volts", hal.HAL_FLOAT, hal.HAL_IN)
-        hal_glib.GPin(pin).connect("value_changed", self.spindle_pwr_changed)
+        pin.value_changed.connect( self.spindle_pwr_changed)
         pin = self.h.newpin("spindle_fault", hal.HAL_U32, hal.HAL_IN)
-        hal_glib.GPin(pin).connect("value_changed", self.spindle_fault_changed)
+        pin.value_changed.connect(self.spindle_fault_changed)
         pin = self.h.newpin("modbus-errors", hal.HAL_U32, hal.HAL_IN)
-        hal_glib.GPin(pin).connect("value_changed", self.mb_errors_changed)
+        pin.value_changed.connect( self.mb_errors_changed)
         # external offset control pins
         self.h.newpin("eoffset_enable", hal.HAL_BIT, hal.HAL_OUT)
         self.h.newpin("eoffset_clear", hal.HAL_BIT, hal.HAL_OUT)
         self.h.newpin("eoffset_count", hal.HAL_S32, hal.HAL_OUT)
         pin = self.h.newpin("eoffset_value", hal.HAL_FLOAT, hal.HAL_IN)
-        hal_glib.GPin(pin).connect("value_changed", self.eoffset_changed)
+        pin.value_changed.connect(self.eoffset_changed)
 
     def init_preferences(self):
         if not self.w.PREFS_:
@@ -233,10 +234,12 @@ class HandlerClass:
         # clickable frames
         self.w.frame_cycle_start.mousePressEvent = self.btn_start_clicked
         self.w.frame_home_all.mousePressEvent = self.btn_home_all_clicked
+        
         # web view widget for SETUP page
-        self.web_view = QWebView()
-        self.w.verticalLayout_setup.addWidget(self.web_view)
-        self.web_view.setHtml(self.html)
+        if self.w.web_view:
+            self.w.verticalLayout_setup.addWidget(self.w.web_view)
+            self.w.web_view.setHtml(self.html)
+        
         # check for virtual keyboard enabled
         if self.w.chk_use_virtual.isChecked():
             self.w.btn_keyboard.show()
@@ -248,9 +251,9 @@ class HandlerClass:
         if not self.w.chk_use_virtual.isChecked() or STATUS.is_auto_mode(): return
         if isinstance(receiver, QtWidgets.QLineEdit):
             if not receiver.isReadOnly():
-                self.w.btn_keyboard.setChecked(True)
+                self.w.stackedWidget_dro.setCurrentIndex(1)
         elif isinstance(receiver, QtWidgets.QTableView):
-            self.w.btn_keyboard.setChecked(True)
+            self.w.stackedWidget_dro.setCurrentIndex(1)
         elif isinstance(receiver, QtWidgets.QCommonStyle):
             return
     
@@ -258,8 +261,8 @@ class HandlerClass:
         # when typing in MDI, we don't want keybinding to call functions
         # so we catch and process the events directly.
         # We do want ESC, F1 and F2 to call keybinding functions though
-        if code not in(QtCore.Qt.Key_Escape,QtCore.Qt.Key_F1 ,QtCore.Qt.Key_F2):
-#                    QtCore.Qt.Key_F3,QtCore.Qt.Key_F4,QtCore.Qt.Key_F5):
+        if code not in(QtCore.Qt.Key_Escape,QtCore.Qt.Key_F1 ,QtCore.Qt.Key_F2,
+                    QtCore.Qt.Key_F12):
 
             # search for the top widget of whatever widget received the event
             # then check if it's one we want the keypress events to go to
@@ -303,6 +306,7 @@ class HandlerClass:
                     event.accept()
                     return True
 
+        if event.isAutoRepeat():return True
         # ok if we got here then try keybindings
         try:
             KEYBIND.call(self,event,is_pressed,shift,cntrl)
@@ -315,7 +319,7 @@ class HandlerClass:
         except Exception as e:
             if is_pressed:
                 LOG.debug('Exception in KEYBINDING:', exc_info=e)
-                print 'Error in, or no function for: %s in handler file for-%s'%(KEYBIND.convert(event),key)
+                print('Error in, or no function for: %s in handler file for-%s'%(KEYBIND.convert(event),key))
         event.accept()
         return True
 
@@ -367,6 +371,7 @@ class HandlerClass:
             self.add_status("Loaded file {}".format(filename))
             self.w.progressBar.setValue(0)
             self.last_loaded_program = filename
+            self.w.lbl_runtime.setText("00:00:00")
         else:
             self.add_status("Filename not valid")
 
@@ -460,7 +465,6 @@ class HandlerClass:
         if index is None: return
         self.w.main_tab_widget.setCurrentIndex(index)
         if index == TAB_MAIN:
-            self.w.btn_keyboard.setChecked(False)
             self.w.stackedWidget.setCurrentIndex(0)
         elif index == TAB_FILE:
             self.w.stackedWidget.setCurrentIndex(1)
@@ -668,7 +672,7 @@ class HandlerClass:
 
     def btn_dimensions_clicked(self, state):
         self.w.gcodegraphics.show_extents_option = state
-        self.w.gcodegraphics.clear_live_plotter()
+        self.w.gcodegraphics.updateGL()
         
     def chk_override_limits_checked(self, state):
         if state:
@@ -689,10 +693,8 @@ class HandlerClass:
 
     # settings tab
     def chk_use_virtual_changed(self, state):
-        if state:
-            self.w.btn_keyboard.show()
-        else:
-            self.w.btn_keyboard.hide()
+        if not state:
+            self.w.stackedWidget_dro.setCurrentIndex(0)
 
     #####################
     # GENERAL FUNCTIONS #
@@ -705,8 +707,8 @@ class HandlerClass:
             ACTION.OPEN_PROGRAM(fname)
             self.add_status("Loaded program file : {}".format(fname))
             self.w.main_tab_widget.setCurrentIndex(TAB_MAIN)
-        elif fname.endswith(".html"):
-            self.web_view.load(QtCore.QUrl.fromLocalFile(fname))
+        elif fname.endswith(".html") and self.w.web_view:
+            self.w.web_view.load(QtCore.QUrl.fromLocalFile(fname))
             self.add_status("Loaded HTML file : {}".format(fname))
             self.w.main_tab_widget.setCurrentIndex(TAB_SETUP)
             self.w.btn_setup.setChecked(True)
@@ -770,7 +772,7 @@ class HandlerClass:
 
     def add_status(self, message):
         self._m = message
-        print message
+        print(message)
         self.w.statusbar.showMessage(self._m, 5000)
         STATUS.emit('update-machine-log', self._m, 'TIME')
 
@@ -779,15 +781,11 @@ class HandlerClass:
             self.w[widget].setEnabled(state)
         if state is True:
             self.w.jogging_frame.show()
-            if self.w.chk_use_virtual.isChecked():
-                self.w.btn_keyboard.show()
         else:
             self.w.jogging_frame.hide()
-            self.w.btn_main.setChecked(True)
-            self.w.btn_keyboard.setChecked(False)
-            self.w.btn_keyboard.hide()
             self.w.main_tab_widget.setCurrentIndex(TAB_MAIN)
             self.w.stackedWidget.setCurrentIndex(0)
+        self.w.stackedWidget_dro.setCurrentIndex(0)
 
     def enable_onoff(self, state):
         if state:
@@ -814,6 +812,9 @@ class HandlerClass:
             self.add_status('Keyboard shortcuts are disabled')
             return False
 
+    def add_alarm(self, message):
+        STATUS.emit('update-machine-log', message, 'TIME')
+
     #####################
     # KEY BINDING CALLS #
     #####################
@@ -839,35 +840,35 @@ class HandlerClass:
             ACTION.PAUSE()
 
     def on_keycall_XPOS(self,event,state,shift,cntrl):
-        if self.use_keyboard() and not self.w.btn_keyboard.isChecked():
+        if self.use_keyboard():
             self.kb_jog(state, 0, 1, shift)
 
     def on_keycall_XNEG(self,event,state,shift,cntrl):
-        if self.use_keyboard() and not self.w.btn_keyboard.isChecked():
+        if self.use_keyboard():
             self.kb_jog(state, 0, -1, shift)
 
     def on_keycall_YPOS(self,event,state,shift,cntrl):
-        if self.use_keyboard() and not self.w.btn_keyboard.isChecked():
+        if self.use_keyboard():
             self.kb_jog(state, 1, 1, shift)
 
     def on_keycall_YNEG(self,event,state,shift,cntrl):
-        if self.use_keyboard() and not self.w.btn_keyboard.isChecked():
+        if self.use_keyboard():
             self.kb_jog(state, 1, -1, shift)
 
     def on_keycall_ZPOS(self,event,state,shift,cntrl):
-        if self.use_keyboard() and not self.w.btn_keyboard.isChecked():
+        if self.use_keyboard():
             self.kb_jog(state, 2, 1, shift)
 
     def on_keycall_ZNEG(self,event,state,shift,cntrl):
-        if self.use_keyboard() and not self.w.btn_keyboard.isChecked():
+        if self.use_keyboard():
             self.kb_jog(state, 2, -1, shift)
     
     def on_keycall_APOS(self,event,state,shift,cntrl):
-        if self.use_keyboard() and not self.w.btn_keyboard.isChecked():
+        if self.use_keyboard():
             self.kb_jog(state, 3, 1, shift, False)
 
     def on_keycall_ANEG(self,event,state,shift,cntrl):
-        if self.use_keyboard() and not self.w.btn_keyboard.isChecked():
+        if self.use_keyboard():
             self.kb_jog(state, 3, -1, shift, False)
 
     def on_keycall_F12(self,event,state,shift,cntrl):

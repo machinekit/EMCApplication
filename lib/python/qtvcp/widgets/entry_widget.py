@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # QTVcp Widget
 #
 # Copyright (c) 2017 Chris Morley
@@ -92,14 +92,14 @@ min-width: 30px;
         gl = QtWidgets.QVBoxLayout()
         self.setFont(self.PARENT_OBJECT.font())
         number_widget_list = []
-        sym_list = range(0, 6)
+        sym_list = list(range(0, 6))
         for sym in sym_list:
             button = MyFlatPushButton(str(sym))
             button.KEY_CHAR = ord(str(sym))
             number_widget_list.append(button)
 
         number_widget_list.append('new_row')
-        sym_list = range(6, 10)
+        sym_list = list(range(6, 10))
         for sym in sym_list:
             button = MyFlatPushButton(str(sym))
             button.KEY_CHAR = ord(str(sym))
@@ -194,7 +194,7 @@ min-width: 30px;
                 v = QtWidgets.QHBoxLayout()
                 v.addStretch()
                 v.setSpacing(5)
-                map(v.addWidget, tlist)
+                list(map(v.addWidget, tlist))
                 v.addStretch()
                 gl.addLayout(v)
                 tlist = []
@@ -204,7 +204,7 @@ min-width: 30px;
         v = QtWidgets.QHBoxLayout()
         v.setSpacing(5)
         v.addStretch()
-        map(v.addWidget, tlist)
+        list(map(v.addWidget, tlist))
         v.addStretch()
         gl.addLayout(v)
         gl.setContentsMargins(0, 0, 0, 0)
@@ -299,15 +299,19 @@ class TouchInterface(QtCore.QObject):
             if hasattr(widget, 'keyboard_type'):
                 if hasattr(widget, 'keyboard_enable') and widget.keyboard_enable is False:
                     return False
-                if widget.keyboard_type.lower() == 'alpha':
-                    self._input_panel_alpha.show_input_panel(widget)
-                elif widget.keyboard_type.lower() == 'numeric':
-                    self._input_panel_numeric.show_input_panel(widget)
-                else:
-                    self._input_panel_full.show_input_panel(widget)
+                self.callDialog(widget, widget.keyboard_type.lower())
+
         return False
       except:
         return False
+
+    def callDialog(self,widget, ktype):
+        if ktype == 'alpha':
+            self._input_panel_alpha.show_input_panel(widget)
+        elif ktype == 'numeric':
+            self._input_panel_numeric.show_input_panel(widget)
+        else:
+            self._input_panel_full.show_input_panel(widget)
 
 class TouchInputWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
@@ -319,7 +323,6 @@ class TouchInputWidget(QtWidgets.QWidget):
 
     def eventFilter(self, widget, event):
         return self.touch_interface.eventFilter(widget, event)
-
 
 class ExampleWidget(TouchInputWidget):
     def __init__(self):
