@@ -281,11 +281,20 @@ case $TARGET in
         EXTRA_RECOMMENDS="$EXTRA_RECOMMENDS, linux-image-rt-amd64 [linux-amd64], linux-image-rt-686-pae [linux-i386]"
         CONFIGURE_REALTIME_ARG=--with-realtime=uspace
     ;;
-    machinekit-hal)
+    machinekit-hal*)
+    MACHINEKIT_HAL_ARR=(${TARGET//=/ })
+    MACHINEKIT_VERSION=${MACHINEKIT_HAL_ARR[1]}
+    if [ -z "$MACHINEKIT_VERSION" ]
+    then
+        printf "%b"                                                          \
+               "Version of Machinekit-HAL packages have to be specified as " \
+               "configure machinekit-hal=\${VERSION}\n"
+        exit 1
+    fi
 	TARGET=machinekit-hal
         MODULE_PATH=usr/lib/machinekit/modules
 	MODULE_EXT=.so
-        KERNEL_DEPENDS="machinekit-hal (>= 0.4)"
+        KERNEL_DEPENDS="machinekit-hal (= $MACHINEKIT_VERSION)"
 	KERNEL_HEADERS=
 	KERNEL_VERSION=machinekit-hal
         MODUTILS_DEPENDS=
@@ -296,8 +305,8 @@ case $TARGET in
         OTHER_MAIN_PACKAGE_NAME=linuxcnc-uspace
         INITRD_REALTIME_PATH=
         CONFIGURE_REALTIME_ARG=--with-hal=machinekit-hal
-    EXTRA_BUILD="${EXTRA_BUILD}, machinekit-hal-dev (>= 0.4)"
-    EXTRA_RECOMMENDS="machinekit-hal-dev"
+    EXTRA_BUILD="${EXTRA_BUILD}, machinekit-hal-dev (= $MACHINEKIT_VERSION)"
+    EXTRA_RECOMMENDS="machinekit-hal-dev (= $MACHINEKIT_VERSION)"
     read -r -d '' MAIN_PACKAGE_DESCRIPTION_TEXT <<DESCRIPTION
 Enhanced Motion Controller for Machinekit-HAL
  Run EMC2 developed as part of LinuxCNC with the power of Machinekit-HAL engine
