@@ -241,6 +241,8 @@ PC based motion controller for real-time Linux
  alternate front-ends for linuxcnc
 DESCRIPTION
 OTHER_CONFLICTING_PACKAGES=""
+VCS_BROWSER="https://github.com/LinuxCNC/linuxcnc"
+VCS_GIT="git://github.com/linuxcnc/linuxcnc.git"
 
 case $TARGET in
     uspace|sim)
@@ -312,6 +314,8 @@ Enhanced Motion Controller for Machinekit-HAL
 DESCRIPTION
     OTHER_CONFLICTING_PACKAGES=", linuxcnc, linuxcnc-dev, machinekit-cnc"
     MAINTAINER="Machinekit Bot <machinekit@eryaf.com>"
+    VCS_BROWSER="https://github.com/machinekit/EMCApplication"
+    VCS_GIT="https://github.com/machinekit/emcapplication.git"
     ;;
     2.6.32-122-rtai|3.4-9-rtai-686-pae|3.16.0-9-rtai-*)
         CONFIGURE_REALTIME_ARG=--with-realtime=/usr/realtime-$KERNEL_VERSION
@@ -364,6 +368,8 @@ sed \
     -e "s#@MAIN_PACKAGE_DESCRIPTION_TEXT@#$MAIN_PACKAGE_DESCRIPTION_TEXT#g" \
     -e "s#@DEV_PACKAGE_DESCRIPTION_TEXT@#$DEV_PACKAGE_DESCRIPTION_TEXT#g" \
     -e "s#@MAINTAINER@#$MAINTAINER#g" \
+    -e "s#@VCS_BROWSER@#$VCS_BROWSER#g" \
+    -e "s#@VCS_GIT@#$VCS_GIT#g" \
     $*
 }
 
@@ -391,7 +397,7 @@ do_emcapplication_changelog() {
     DISTRO_UC="$(echo $DISTRO_CODENAME | sed 's/^[[:space:]]*//g' | sed -e 's/\b\(.\)/\u\1/g')"
     DISTRO_LC="$(echo $DISTRO_CODENAME | sed 's/^[[:space:]]*//g')"
     COMMIT_COUNT="$(git rev-list --count HEAD)"
-    EMCAVERSION="$(git show HEAD:VERSION | cut -d ' ' -f 1).${COMMIT_COUNT}-1.git$(git rev-parse --short HEAD)~${DISTRO_LC}"
+    EMCAVERSION="$(git show HEAD:VERSION | cut -d ' ' -f 1).${COMMIT_COUNT}.git$(git rev-parse --short HEAD)~${DISTRO_LC}"
     COMMIT="$(git rev-parse HEAD)"
     AUTHOR_NAME="$(git show -s --pretty=%an $COMMIT)"
     AUTHOR_EMAIL="$(git show -s --format='%ae' $COMMIT)"
