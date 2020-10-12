@@ -80,9 +80,16 @@ curl -1sLf \
   | sudo -E bash
 git clone https://github.com/machinekit/emcapplication.git
 cd emcapplication
-sudo apt install build-essential fakeroot devscripts python
-debian/configure machinekit-hal no-docs
-mk-build-deps -irs sudo
+sudo apt install build-essential fakeroot devscripts python apt-cudf
+sudo apt-mark hold machinekit-hal
+debian/configure machinekit-hal=${WANTED_VERSION_OF_MACHINEKIT_HAL_PACKAGES} no-docs
+mk-build-deps       \
+    --install       \
+    --remove        \
+    --root-cmd sudo \
+    --tool          \
+    'apt-cudf-get --solver aspcud -o APT::Get::Assume-Yes=1 -o Debug::pkgProblemResolver=0 -o APT::Install-Recommends=0' \
+    debian/control
 cd src
 ./autogen.sh
 ./configure --with-hal=machinekit-hal
@@ -90,6 +97,7 @@ make
 sudo make install
 cd ..
 source ./scripts/rip-environment
+linuxcnc
 ```
 
 |![Warning](https://img.icons8.com/ios-filled/50/000000/warning-shield.png)| Be advised that currently there is no support for Linux distributions other than Debian. |
