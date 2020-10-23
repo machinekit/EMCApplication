@@ -826,10 +826,6 @@ void emcmotCommandHandler(void *arg, long period)
 		SET_JOINT_ERROR_FLAG(joint, 1);
 		break;
 	    }
-	    if (emcmotStatus->net_feed_scale < 0.0001) {
-		/* don't jog if feedhold is on or if feed override is zero */
-		break;
-	    }
             if (!GET_MOTION_TELEOP_FLAG()) {
 	        if (joint->wheel_jjog_active) {
 		    /* can't do two kinds of jog at once */
@@ -920,10 +916,6 @@ void emcmotCommandHandler(void *arg, long period)
 	    if ( get_homing_is_active() ) {
 		reportError(_("Can't jog any joint while homing."));
 		SET_JOINT_ERROR_FLAG(joint, 1);
-		break;
-	    }
-	    if (emcmotStatus->net_feed_scale < 0.0001 ) {
-		/* don't jog if feedhold is on or if feed override is zero */
 		break;
 	    }
             if (!GET_MOTION_TELEOP_FLAG()) {
@@ -1028,10 +1020,6 @@ void emcmotCommandHandler(void *arg, long period)
                 // FREE JOG_ABS
                 if (joint->wheel_jjog_active) {
                     /* can't do two kinds of jog at once */
-                    break;
-                }
-                if (emcmotStatus->net_feed_scale < 0.0001 ) {
-                    /* don't jog if feedhold is on or if feed override is zero */
                     break;
                 }
                 /* don't jog further onto limits */
