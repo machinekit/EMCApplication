@@ -22,22 +22,23 @@ TARGETS += ../tcl/linuxcnc.so
 
 ../bin/linuxcncrsh: $(call TOOBJS, $(EMCRSHSRCS)) $(LIB_HAL_SO) ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CXX) $(LDFLAGS) -o $@ $(ULFLAGS) $^ -lpthread $(L_HAL) $(L_ULAPI)
+	$(Q)$(CXX) -o $@ $(ULFLAGS) $^ -lpthread  $(L_HAL) $(L_ULAPI) $(LDFLAGS)
 TARGETS += ../bin/linuxcncrsh
 
 ../bin/schedrmt: $(call TOOBJS, $(EMCSCHEDSRCS)) $(LIB_HAL_SO) ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CXX) $(LDFLAGS) -o $@ $(ULFLAGS) $^ -lpthread $(L_HAL) $(L_ULAPI)
+	$(Q)$(CXX) -o $@ $(ULFLAGS) $^ -lpthread  $(L_HAL) $(L_ULAPI) $(LDFLAGS)
 TARGETS += ../bin/schedrmt
 
 ../bin/linuxcnclcd: $(call TOOBJS, $(EMCLCDSRCS)) $(LIB_HAL_SO) ../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CXX) $(LDFLAGS) -o $@ $(ULFLAGS) $^ $(L_HAL) $(L_ULAPI)
+	$(Q)$(CXX) -o $@ $(ULFLAGS) $^ $(L_HAL) $(L_ULAPI) $(LDFLAGS)
 TARGETS += ../bin/linuxcnclcd
 
 ../bin/halui: $(call TOOBJS, $(HALUISRCS)) \
 	    ../lib/liblinuxcnc.a ../lib/liblinuxcncini.so.0 \
-	    ../lib/libnml.so.0 $(LIB_HAL_SO) $(LIB_LCNCULAPI_SO)
+	    ../lib/libnml.so.0 $(LIB_HAL_SO) $(LIB_LCNCULAPI_SO) \
+	     ../lib/libtooldata.so.0
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CXX) $(LDFLAGS) -o $@ $(ULFLAGS) $(L_HAL) $(L_ULAPI) $^
+	$(Q)$(CXX) $(CXXFLAGS) -o $@ $(ULFLAGS) $(L_HAL) $(L_ULAPI) $^ $(LDFLAGS)
 TARGETS += ../bin/halui

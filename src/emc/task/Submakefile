@@ -6,7 +6,7 @@ USERSRCS += $(EMCSVRSRCS)
 ../bin/linuxcncsvr: $(call TOOBJS, $(EMCSVRSRCS)) $(LIB_HAL_SO) \
 	../lib/liblinuxcnc.a ../lib/libnml.so.0 ../lib/liblinuxcncini.so.0
 	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CXX) $(LDFLAGS) -o $@ $^ $(L_HAL) $(L_ULAPI)
+	$(Q)$(CXX) -o $@ $^ $(LDFLAGS) $(L_HAL) $(L_ULAPI)
 TARGETS += ../bin/linuxcncsvr
 
 # disabled:	emc/task/iotaskintf.cc
@@ -20,7 +20,6 @@ MILLTASKSRCS := \
 	emc/task/taskintf.cc \
 	emc/motion/dbuf.c \
 	emc/motion/stashf.c \
-	emc/rs274ngc/tool_parse.cc \
 	emc/task/taskmodule.cc \
 	emc/task/taskclass.cc \
 	emc/task/backtrace.cc \
@@ -33,7 +32,7 @@ USERSRCS += $(MILLTASKSRCS)
 	    ../lib/librs274.so.0 ../lib/liblinuxcnc.a ../lib/libnml.so.0 \
 	    ../lib/liblinuxcncini.so.0 ../lib/libposemath.so.0 \
 	    $(LIB_HAL_SO) ../lib/libpyplugin.so.0 \
-	    $(LIB_LCNCULAPI_SO)
+	    $(LIB_LCNCULAPI_SO) ../lib/libtooldata.so.0
 	$(ECHO) Linking $(notdir $@)
 	$(CXX) -o $@ $^ $(LDFLAGS) $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON) \
 	    $(L_HAL) $(L_ULAPI) $(L_RTAPI_MATH)
