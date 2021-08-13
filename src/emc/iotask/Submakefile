@@ -1,20 +1,23 @@
-IOSRCS := emc/iotask/ioControl.cc emc/rs274ngc/tool_parse.cc
-IOV2SRCS := emc/iotask/ioControl_v2.cc emc/rs274ngc/tool_parse.cc
+IOSRCS := emc/iotask/ioControl.cc
+IOV2SRCS := emc/iotask/ioControl_v2.cc
 USERSRCS += $(IOSRCS) $(IOV2SRCS)
 
 ../bin/io: \
 	    $(call TOOBJS, $(IOSRCS)) ../lib/liblinuxcnc.a ../lib/libnml.so.0 \
 	    $(LIB_HAL_SO) ../lib/liblinuxcncini.so.0 \
-	    $(LIB_LCNCULAPI_SO)
+	    $(LIB_LCNCULAPI_SO) ../lib/libtooldata.so.0
 	$(ECHO) Linking $(notdir $@)
-	@$(CXX) $(LDFLAGS) -o $@ $(L_HAL) $(L_ULAPI) $^ 
+	@$(CXX) -o $@ $(L_HAL) $(L_ULAPI) $^ $(LDFLAGS)
 
 ../bin/iov2: \
 	    $(call TOOBJS, $(IOV2SRCS)) ../lib/liblinuxcnc.a \
 	    ../lib/libnml.so.0 $(LIB_HAL_SO) \
 	    ../lib/liblinuxcncini.so.0 $(LIB_LCNCULAPI_SO)
+../bin/iov2: \
+	    $(call TOOBJS, $(IOV2SRCS)) ../lib/liblinuxcnc.a \
+	    ../lib/libnml.so.0 $(LIB_HAL_SO) \
+	    ../lib/liblinuxcncini.so.0 $(LIB_LCNCULAPI_SO) ../lib/libtooldata.so.0
 	$(ECHO) Linking $(notdir $@)
-	@$(CXX) $(LDFLAGS) -o $@ $(L_HAL) $(L_ULAPI) $^
+	@$(CXX) -o $@ $(L_HAL) $(L_ULAPI) $^ $(LDFLAGS)
 
 TARGETS += ../bin/io ../bin/iov2
-
